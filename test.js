@@ -8,12 +8,29 @@ function write(text)
 
 const {interpret, pop} = forth(write)
 
+let totalTests  = 0
+let passedTests = 0
+
 function assert(testName, expect, actual)
 {
-	const text = expect === actual
-		? `\x1b[32m\x1b[1m OK - ${testName}\x1b[0m`
-		: `\x1b[31m\x1b[1m NOK - ${testName}: Expected ${expect}, but got: ${actual}\x1b[0m`
-	console.log(text)
+	totalTests += 1
+	if (expect === actual) {
+		passedTests += 1
+		console.log(`\x1b[32m\x1b[1m OK - ${testName}\x1b[0m`)
+	}
+	else {
+		console.log(`\x1b[31m\x1b[1m NOK - ${testName}: Expected ${expect}, but got: ${actual}\x1b[0m`)
+	}
+}
+
+function testReady()
+{
+	if (totalTests === passedTests) {
+		console.log(`\x1b[32m\x1b[1m Tests: ${totalTests}, passed: ${passedTests}, 100% \x1b[0m`)
+	}
+	else {
+		console.log(`\x1b[31m\x1b[1m Tests: ${totalTests}, passed: ${passedTests}, failed: ${totalTests-passedTests} \x1b[0m`)
+	}
 }
 
 (function () {
@@ -118,3 +135,6 @@ function assert(testName, expect, actual)
 	interpret(` 20 22 : colon-def-+ + ;   colon-def-+   DUP .`   )
 	assert('Colon-def DUP', 42, pop())
 })();
+
+
+testReady()

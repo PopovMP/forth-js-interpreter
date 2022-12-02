@@ -4,7 +4,7 @@
   "description": "Forth interpreter in JS",
   "main": "forth.js",
   "scripts": {
-    "test": "test"
+    "test": "node test.js"
   },
   "repository": {
     "type": "git",
