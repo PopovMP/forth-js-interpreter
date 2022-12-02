@@ -1,0 +1,18 @@
+{
+  "name": "forth-js",
+  "version": "0.1.0",
+  "description": "Forth interpreter in JS",
+  "main": "forth.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "forth-js"
+  },
+  "keywords": [
+    "forth"
+  ],
+  "author": "Popov",
+  "license": "MIT"
+}
