@@ -16,10 +16,10 @@ function assert(testName, expect, actual)
 	totalTests += 1
 	if (expect === actual) {
 		passedTests += 1
-		console.log(`\x1b[32m\x1b[1m OK - ${testName}\x1b[0m`)
+		console.log(`\x1b[32m\x1b[1mOK - ${testName}\x1b[0m`)
 	}
 	else {
-		console.log(`\x1b[31m\x1b[1m FAIL - ${testName}: Expected ${expect}, but got: ${actual}\x1b[0m`)
+		console.log(`\x1b[31m\x1b[1mFAIL - ${testName}: Expected ${expect}, but got: ${actual}\x1b[0m`)
 	}
 }
 
@@ -144,8 +144,13 @@ function testReady()
 })();
 
 (function () {
-	interpret(` 42 : colon-def-native DUP ;   colon-def-native    DUP .`)
+	interpret(`42   : colon-def-native DUP ;   colon-def-native   .`)
 	assert('Colon-def native', 42, pop())
+})();
+
+(function () {
+	interpret(` : fortyTwo 21 DUP + ;   ' fortyTwo   EXECUTE    DUP .`)
+	assert('Def tick execute', 42, pop())
 })();
 
 (function () {
@@ -170,13 +175,23 @@ function testReady()
 	assert('Left bracket', 42, pop())
 })();
 
-/*
-// TODO Make separate memory area for strings
+(function () {
+	interpret('42  : dt DUP . ;   : sh dt ;  sh')
+	assert('def call def', 42, pop())
+})();
 
 (function () {
-	interpret(`: colon-def-S S" Hello, World!" ;   colon-def-S TYPE `)
-	assert('Colon def S', 1, 1)
+	interpret(`: sum + ;   : multi * ;   : dot . ;`)
+	interpret(`: one 1 ;   : two 2 ;     : three one two sum ;`)
+	interpret(`: seven three DUP sum one sum ;   : twenty-one three seven multi ;`)
+	interpret(`: forty-two twenty-one two multi ;   forty-two   DUP dot`)
+	assert('forty-two', 42, pop())
 })();
+
+
+/*
+
+// TODO Make separate memory area for strings
 
 (function () {
 	interpret(`: colon-def-S S" Hello, World!" ;   colon-def-S TYPE `)
@@ -192,6 +207,7 @@ function testReady()
 	interpret(`: colon-def-." ." Hello, World!" ; `)
 	assert('Colon-def ."', 1, 1)
 })();
-
 */
+
+
 testReady()

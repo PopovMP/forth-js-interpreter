@@ -390,9 +390,8 @@ function forth (write) {
 		addWord('',           variableRTS,   0|Hidden) // NATIVE_XT_ADDR + 0
 		addWord('',           constantRTS,   0|Hidden) // NATIVE_XT_ADDR + 1
 		addWord('',           valueRTS,      0|Hidden) // NATIVE_XT_ADDR + 2
-		addWord('',           nestRTS,       0|Hidden) // NATIVE_XT_ADDR + 3
+		addWord('',           literalRTS,    0|Hidden) // NATIVE_XT_ADDR + 3
 		addWord('',           unNestRTS,     0|Hidden) // NATIVE_XT_ADDR + 4
-		addWord('',           literalRTS,    0|Hidden) // NATIVE_XT_ADDR + 5
 		addWord('+',          SUM,           0)
 		addWord('-',          MINUS,         0)
 		addWord('*',          STAR,          0)
@@ -493,18 +492,6 @@ function forth (write) {
 	 * @return {void}
 	 */
 	function valueRTS(pfa) { push( fetch(pfa) ) }
-
-	/**
-	 * Run-time specifics for colon-def
-	 * @param {number} pfa - parameter-field address
-	 * @return {void}
-	 */
-	function nestRTS(pfa)
-	{
-		push(pfa)
-		TO_R() // Push next addr to Return stack
-		IP = pfa-8
-	}
 
 	/**
 	 * Run-time specifics for colon-def
@@ -1162,7 +1149,7 @@ function forth (write) {
 		const num = pop()
 		HERE()
 		const addr = pop()
-		push(100_000*(addr+8) + NATIVE_XT_ADDR+5) // literalRTS
+		push(100_000*(addr+8) + NATIVE_XT_ADDR+3) // literalRTS
 		COMMA()
 		push(num)
 		COMMA()
@@ -1450,12 +1437,20 @@ function forth (write) {
 	function EXECUTE()
 	{
 		const xt  = pop()
-		const rts = xt % 10_000
+		const rts = xt % 100_000
 		const pfa = Math.floor(xt / 100_000)
-		if (NATIVE_XT_ADDR <= rts && rts < DSP_START_ADDR)
-			_wordMap[rts](pfa) // Gives the PFA - parameters-field address
+		if (NATIVE_XT_ADDR <= rts && rts < DSP_START_ADDR) {
+			// It is a native word
+			_wordMap[rts](pfa)
+		}
+		else if (DSP_START_ADDR < rts) {
+			// It is a colon-def. NEST
+			push(IP)
+			TO_R()
+			IP = rts - 8 // Because NEXT will increment it
+		}
 		else
-			throw new Error('Not an executable')
+			throw new Error('Invalid XT')
 	}
 
 	/**
@@ -1466,7 +1461,7 @@ function forth (write) {
 	function COMPILE_COMMA()
 	{
 		const xt  = pop()
-		const rts = xt % 10_000
+		const rts = xt % 100_000
 		HERE()
 		const addr = pop()
 		push(100_000*addr + rts)
@@ -1659,7 +1654,7 @@ function forth (write) {
 		cStore(flag, nfa+31)
 
 		// Set XT for colon-def: nestRTS
-		const xt = 100_000*(nfa+48) + NATIVE_XT_ADDR+3
+		const xt = 100_000*(nfa+48) + nfa+48
 		store(xt, nfa+40)
 
 		// Enter compilation state
