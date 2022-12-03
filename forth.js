@@ -18,7 +18,7 @@ function forth (write) {
 	const RET_STACK_ADDR          =    632 // size 1024 cells
 	const POD_ADDR                =  8_824 // size 90 cells
 	const PARSE_WORD_ADDR         =  9_544 // size 32 cells
-	const NATIVE_XT_ADDR          =  9_800
+	const NATIVE_RTS_ADDR         =  9_800
 	const DSP_START_ADDR          = 10_000
 	const MEMORY_SIZE             = 64_000
 
@@ -227,7 +227,7 @@ function forth (write) {
 		store(wordNFA, CURRENT_DEF_ADDR)
 
 		// addr+40 - CFA - Code Field Address
-		const rts = NATIVE_XT_ADDR + Object.keys(_wordMap).length
+		const rts = NATIVE_RTS_ADDR + Object.keys(_wordMap).length
 		const pfa = wordNFA+48
 		const xt  = 100_000 * pfa + rts
 		store(xt, wordNFA+40)
@@ -302,8 +302,7 @@ function forth (write) {
 						while(true) {
 							EXECUTE()
 							if (IP === 0) break
-
-							// Next
+							// Next XT within a colon-def
 							IP += 8
 							const xt = fetch(IP)
 							push(xt)
@@ -387,11 +386,11 @@ function forth (write) {
 
 	function addWords()
 	{
-		addWord('',           variableRTS,   0|Hidden) // NATIVE_XT_ADDR + 0
-		addWord('',           constantRTS,   0|Hidden) // NATIVE_XT_ADDR + 1
-		addWord('',           valueRTS,      0|Hidden) // NATIVE_XT_ADDR + 2
-		addWord('',           literalRTS,    0|Hidden) // NATIVE_XT_ADDR + 3
-		addWord('',           unNestRTS,     0|Hidden) // NATIVE_XT_ADDR + 4
+		addWord('',           variableRTS,   0|Hidden) // NATIVE_RTS_ADDR+0
+		addWord('',           constantRTS,   0|Hidden) // NATIVE_RTS_ADDR+1
+		addWord('',           valueRTS,      0|Hidden) // NATIVE_RTS_ADDR+2
+		addWord('',           literalRTS,    0|Hidden) // NATIVE_RTS_ADDR+3
+		addWord('',           unNestRTS,     0|Hidden) // NATIVE_RTS_ADDR+4
 		addWord('+',          SUM,           0)
 		addWord('-',          MINUS,         0)
 		addWord('*',          STAR,          0)
@@ -494,16 +493,16 @@ function forth (write) {
 	function valueRTS(pfa) { push( fetch(pfa) ) }
 
 	/**
-	 * Run-time specifics for colon-def
+	 * Run-time specifics for exit from a colon-def
 	 * @param {number} pfa - parameter-field address
 	 * @return {void}
 	 */
 	function unNestRTS(pfa)
 	{
 		R_FROM()
-		const nextAddr  = pop()
-		const nestDepth = rDepth()
-		IP = nestDepth === 0 ? 0 : nextAddr
+		const callerAddr = pop()
+		const nestDepth  = rDepth()
+		IP = nestDepth === 0 ? 0 : callerAddr
 	}
 
 	/**
@@ -879,7 +878,7 @@ function forth (write) {
 		store(nfa, CURRENT_DEF_ADDR)
 
 		// addr+40 - CFA - Code Field Address
-		const xt = 100_000*(nfa+48) + NATIVE_XT_ADDR // varRTS
+		const xt = 100_000*(nfa+48) + NATIVE_RTS_ADDR // varRTS
 		store(xt, nfa+40)
 	}
 
@@ -910,7 +909,7 @@ function forth (write) {
 		// Set XT for CONSTANT
 		HERE()
 		const pfa = pop()
-		const xt  = 100_000*pfa + NATIVE_XT_ADDR+1
+		const xt  = 100_000*pfa + NATIVE_RTS_ADDR+1
 		store(xt, pfa - 8)
 
 		push(x)
@@ -932,7 +931,7 @@ function forth (write) {
 		// Set XT for VALUE
 		HERE()
 		const pfa = pop()
-		const xt  = 100_000*pfa + NATIVE_XT_ADDR+2
+		const xt  = 100_000*pfa + NATIVE_RTS_ADDR+2
 		store(xt, pfa-8)
 
 		push(x)
@@ -1149,7 +1148,7 @@ function forth (write) {
 		const num = pop()
 		HERE()
 		const addr = pop()
-		push(100_000*(addr+8) + NATIVE_XT_ADDR+3) // literalRTS
+		push(100_000*(addr+8) + NATIVE_RTS_ADDR+3) // literalRTS
 		COMMA()
 		push(num)
 		COMMA()
@@ -1439,15 +1438,15 @@ function forth (write) {
 		const xt  = pop()
 		const rts = xt % 100_000
 		const pfa = Math.floor(xt / 100_000)
-		if (NATIVE_XT_ADDR <= rts && rts < DSP_START_ADDR) {
+		if (NATIVE_RTS_ADDR <= rts && rts < DSP_START_ADDR) {
 			// It is a native word
 			_wordMap[rts](pfa)
 		}
-		else if (DSP_START_ADDR < rts) {
+		else if (DSP_START_ADDR <= rts && rts < MEMORY_SIZE) {
 			// It is a colon-def. NEST
 			push(IP)
 			TO_R()
-			IP = rts - 8 // Because NEXT will increment it
+			IP = rts-8 // Because NEXT will increment it
 		}
 		else
 			throw new Error('Invalid XT')
@@ -1653,7 +1652,7 @@ function forth (write) {
 		const flag = cFetch(nfa+31) | Hidden
 		cStore(flag, nfa+31)
 
-		// Set XT for colon-def: nestRTS
+		// Set XT for colon-def ot itself
 		const xt = 100_000*(nfa+48) + nfa+48
 		store(xt, nfa+40)
 
@@ -1677,7 +1676,7 @@ function forth (write) {
 		// Set XT for end of colon-def: unNestRTS
 		HERE()
 		const addr = pop()
-		push(100_000*addr + NATIVE_XT_ADDR+4)
+		push(100_000*addr + NATIVE_RTS_ADDR+4) // unNestRTS
 		COMMA()
 
 		// Exit compilation state

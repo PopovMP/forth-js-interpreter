@@ -176,6 +176,11 @@ function testReady()
 })();
 
 (function () {
+	interpret(`: lit-def [ 42 ] LITERAL ;   lit-def DUP .`)
+	assert('LITERAL', 42, pop())
+})();
+
+(function () {
 	interpret('42  : dt DUP . ;   : sh dt ;  sh')
 	assert('def call def', 42, pop())
 })();
@@ -188,9 +193,12 @@ function testReady()
 	assert('forty-two', 42, pop())
 })();
 
+(function () {
+	interpret(': immediate-def 42 DUP . ; IMMEDIATE   : foo immediate-def ;')
+	assert('immediate-def', 42, pop())
+})();
 
 /*
-
 // TODO Make separate memory area for strings
 
 (function () {
