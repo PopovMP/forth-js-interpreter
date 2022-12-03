@@ -19,18 +19,14 @@ function assert(testName, expect, actual)
 		console.log(`\x1b[32m\x1b[1m OK - ${testName}\x1b[0m`)
 	}
 	else {
-		console.log(`\x1b[31m\x1b[1m NOK - ${testName}: Expected ${expect}, but got: ${actual}\x1b[0m`)
+		console.log(`\x1b[31m\x1b[1m FAIL - ${testName}: Expected ${expect}, but got: ${actual}\x1b[0m`)
 	}
 }
 
 function testReady()
 {
-	if (totalTests === passedTests) {
-		console.log(`\x1b[32m\x1b[1m Tests: ${totalTests}, passed: ${passedTests}, 100% \x1b[0m`)
-	}
-	else {
-		console.log(`\x1b[31m\x1b[1m Tests: ${totalTests}, passed: ${passedTests}, failed: ${totalTests-passedTests} \x1b[0m`)
-	}
+	const color = totalTests === passedTests ? '\x1b[32m' : '\x1b[31m'
+	console.log(`${color}\x1b[1m Tests: ${totalTests}, passed: ${passedTests}, failed: ${totalTests - passedTests} \x1b[0m`)
 }
 
 (function () {
@@ -51,6 +47,26 @@ function testReady()
 (function () {
 	interpret('." Hello, World!"')
 	assert('Hello World', 1, 1)
+})();
+
+// Stack operations
+
+(function () {
+	interpret(' 42 43 DEPTH DUP .')
+	assert('DEPTH', 2, pop())
+	pop()
+	pop()
+})();
+
+(function () {
+	interpret(' 1 ?DUP + DUP .')
+	assert('1 ?DUP', 2, pop())
+})();
+
+(function () {
+	interpret(' 0 ?DUP DEPTH  DUP .')
+	assert('0 ?DUP', 1, pop())
+	pop()
 })();
 
 (function () {

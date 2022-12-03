@@ -134,19 +134,13 @@ function forth (write) {
 	 * Gets the stack depth
 	 * @return {number}
 	 */
-	function depth()
-	{
-		return ((S - DSP_START_ADDR) >> 3)
-	}
+	function depth() { return ((S - DATA_STACK_ADDR) >> 3) }
 
 	/**
 	 * Empties stack
 	 * @return {void}
 	 */
-	function empty()
-	{
-		S = DATA_STACK_ADDR
-	}
+	function empty() { S = DATA_STACK_ADDR }
 
 	/**
 	 * Pushes a number to return stack.
@@ -188,10 +182,7 @@ function forth (write) {
 	 * Empties return stack
 	 * @return {void}
 	 */
-	function rEmpty()
-	{
-		R = RET_STACK_ADDR
-	}
+	function rEmpty() { R = RET_STACK_ADDR }
 
 	/**
 	 * Adds a native word record to the map
@@ -326,7 +317,7 @@ function forth (write) {
 					const num = pop()
 					HERE()
 					const addr = pop()
-					push(100_000*(addr+8) + NATIVE_XT_ADDR+6) // cellRTS
+					push(100_000*(addr+8) + NATIVE_XT_ADDR+6) // literalRTS
 					COMMA()
 					push(num)
 					COMMA()
@@ -388,7 +379,7 @@ function forth (write) {
 		addWord('',           nestRTS,       0|Hidden) // NATIVE_XT_ADDR + 3
 		addWord('',           unNestRTS,     0|Hidden) // NATIVE_XT_ADDR + 4
 		addWord('',           nextRTS,       0|Hidden) // NATIVE_XT_ADDR + 5
-		addWord('',           cellRTS,       0|Hidden) // NATIVE_XT_ADDR + 6
+		addWord('',           literalRTS,       0|Hidden) // NATIVE_XT_ADDR + 6
 		addWord('+',          SUM,           0)
 		addWord('-',          MINUS,         0)
 		addWord('=',          EQUALS,        0)
@@ -525,12 +516,12 @@ function forth (write) {
 	}
 
 	/**
-	 * Run-time specifics for literal number in a colon-def
-	 * The number is in the next cell
+	 * Run-time specifics for literal number in a colon-def.
+	 * The number is in the next cell.
 	 * @param {number} addr - address of the number.
 	 * @return {void}
 	 */
-	function cellRTS(addr)
+	function literalRTS(addr)
 	{
 		const val = fetch(addr)
 		push(val)
