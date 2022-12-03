@@ -29,6 +29,9 @@ function testReady()
 	console.log(`${color}\x1b[1m Tests: ${totalTests}, passed: ${passedTests}, failed: ${totalTests - passedTests} \x1b[0m`)
 }
 
+
+// Error cases
+
 (function () {
 	interpret('. Expected "Stack underflow"')
 	assert('Stack underflow', 1, 1)
@@ -44,9 +47,21 @@ function testReady()
 	assert('Unknown word foo', 1, 1)
 })();
 
+// Strings
+
 (function () {
 	interpret('." Hello, World!"')
-	assert('Hello World', 1, 1)
+	assert('Interpretation ."', 1, 1)
+})();
+
+(function () {
+	interpret('S" Hello, World!" SWAP DROP')
+	assert('Interpretation S"', 13, pop())
+})();
+
+(function () {
+	interpret('C" Hello, World!" C@ ')
+	assert('Interpretation C"', 13, pop())
 })();
 
 // Stack operations
@@ -114,6 +129,8 @@ function testReady()
 	assert('Hello World by chars', 1, 1)
 })();
 
+// Colon def
+
 (function () {
 	// XT: nestRTS, NFA: unnestRTS
 	interpret(`: colon-def-a ;  ' colon-def-a  DUP .  >BODY @ .`)
@@ -121,9 +138,31 @@ function testReady()
 })();
 
 (function () {
-	// PFA: cellRTS, PFA+8: 42
+	// PFA: literalRTS, PFA+8: 42
 	interpret(`: colon-def-num 42 ; ' colon-def-num >BODY DUP @ .   8 + @ DUP .`)
 	assert('Colon def with a num', 42, pop())
+})();
+
+(function () {
+	interpret(` 42 : colon-def-native DUP ;   colon-def-native    DUP .`)
+	assert('Colon-def native', 42, pop())
+})();
+
+(function () {
+	interpret(`10 2   : colon-def-mt TUCK DUP + * + ;   colon-def-mt    DUP .  `)
+	assert('Colon-def multiple native words', 42, pop())
+})();
+
+(function () {
+	// R: push 42 on stack
+	interpret(`: literal-rts 42 ;   literal-rts    DUP .`)
+	assert('literal-rts', 42, pop())
+})();
+
+(function () {
+	interpret(`: colon-def-range 42 43 44 ;   colon-def-range`)
+	const range = [pop(), pop(), pop()].reverse().join(' ')
+	assert('Range 42 43 44', '42 43 44', range)
 })();
 
 (function () {
@@ -131,26 +170,28 @@ function testReady()
 	assert('Left bracket', 42, pop())
 })();
 
+/*
+// TODO Make separate memory area for strings
+
 (function () {
-	interpret(`: colon-def-42 42 ;   colon-def-42    DUP .`   )
-	assert('Set 42 in stack', 42, pop())
+	interpret(`: colon-def-S S" Hello, World!" ;   colon-def-S TYPE `)
+	assert('Colon def S', 1, 1)
 })();
 
 (function () {
-	interpret(`: colon-def-range 42 43 44 ;   colon-def-range`   )
-	const range = [pop(), pop(), pop()].reverse().join(' ')
-	assert('Range 42 43 44', '42 43 44', range)
+	interpret(`: colon-def-S S" Hello, World!" ;   colon-def-S TYPE `)
+	assert('Colon def S', 1, 1)
 })();
 
 (function () {
-	interpret(` 42 : colon-def-DUP DUP  ; colon-def-DUP .`   )
-	assert('Colon-def DUP', 42, pop())
+	interpret(`: colon-def-C" C" Hello, World!" ;   colon-def-C" COUNT TYPE `)
+	assert('Colon-def C"', 1, 1)
 })();
 
 (function () {
-	interpret(` 20 22 : colon-def-+ + ;   colon-def-+   DUP .`   )
-	assert('Colon-def DUP', 42, pop())
+	interpret(`: colon-def-." ." Hello, World!" ; `)
+	assert('Colon-def ."', 1, 1)
 })();
 
-
+*/
 testReady()

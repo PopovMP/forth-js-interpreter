@@ -41,6 +41,9 @@ function forth (write) {
 	/** @property {number} R - Return stack pointer */
 	let R = RET_STACK_ADDR
 
+	/** @property {number} IP - (Instruction Pointer) - a-addr of next XT to execute at run-time */
+	let IP = 0
+
 	// Declare native words
 	addWords()
 
@@ -179,6 +182,12 @@ function forth (write) {
 	}
 
 	/**
+	 * Gets the return stack depth
+	 * @return {number}
+	 */
+	function rDepth() { return ((R - RET_STACK_ADDR) >> 3) }
+
+	/**
 	 * Empties return stack
 	 * @return {void}
 	 */
@@ -287,15 +296,26 @@ function forth (write) {
 			const flag = pop()
 			if (flag !== 0) {
 				// Word found
-				try {
-					if (!isCompiling || (isCompiling && flag === 1) )
-						EXECUTE() // Interpret state or Immediate
-					else
-						COMPILE_COMMA()
+				if (!isCompiling || (isCompiling && flag === 1) ) {
+					// Interpret state or Immediate
+					try {
+						while(true) {
+							EXECUTE()
+							if (IP === 0) break
+
+							// Next
+							IP += 8
+							const xt = fetch(IP)
+							push(xt)
+						}
+					}
+					catch (e) {
+						abort(e.message)
+						break
+					}
 				}
-				catch (e) {
-					abort(e.message)
-					break
+				else {
+					COMPILE_COMMA()
 				}
 			}
 			else {
@@ -314,13 +334,7 @@ function forth (write) {
 					break
 				}
 				if (isCompiling) {
-					const num = pop()
-					HERE()
-					const addr = pop()
-					push(100_000*(addr+8) + NATIVE_XT_ADDR+6) // literalRTS
-					COMMA()
-					push(num)
-					COMMA()
+					LITERAL()
 				}
 			}
 		}
@@ -378,10 +392,10 @@ function forth (write) {
 		addWord('',           valueRTS,      0|Hidden) // NATIVE_XT_ADDR + 2
 		addWord('',           nestRTS,       0|Hidden) // NATIVE_XT_ADDR + 3
 		addWord('',           unNestRTS,     0|Hidden) // NATIVE_XT_ADDR + 4
-		addWord('',           nextRTS,       0|Hidden) // NATIVE_XT_ADDR + 5
-		addWord('',           literalRTS,       0|Hidden) // NATIVE_XT_ADDR + 6
+		addWord('',           literalRTS,    0|Hidden) // NATIVE_XT_ADDR + 5
 		addWord('+',          SUM,           0)
 		addWord('-',          MINUS,         0)
+		addWord('*',          STAR,          0)
 		addWord('=',          EQUALS,        0)
 		addWord('0=',         ZERO_EQUALS,   0)
 		addWord('TRUE',       TRUE,          0)
@@ -428,6 +442,7 @@ function forth (write) {
 		addWord('S"',         S_QUOTE,       0|Immediate)
 		addWord('C"',         C_QUOTE,       0|Immediate)
 		addWord('."',         DOT_QUOTE,     0|Immediate)
+		addWord('LITERAL',    LITERAL,       0|Immediate)
 		addWord('COMPARE',    COMPARE,       0)
 		addWord('FIND',       FIND,          0)
 		addWord('CMOVE',      C_MOVE,        0)
@@ -486,11 +501,9 @@ function forth (write) {
 	 */
 	function nestRTS(pfa)
 	{
-		const val = fetch(pfa)
-		push(val)
-		DUP()
-		TO_R()
-		EXECUTE() // Execute first XT of the colon-def
+		push(pfa)
+		TO_R() // Push next addr to Return stack
+		IP = pfa-8
 	}
 
 	/**
@@ -501,18 +514,9 @@ function forth (write) {
 	function unNestRTS(pfa)
 	{
 		R_FROM()
-		DROP()
-	}
-
-	/**
-	 * Run-time specifics for colon-def
-	 * @param {number} pfa - parameter-field address
-	 * @return {void}
-	 */
-	function nextRTS(pfa)
-	{
-		const val = fetch(pfa)
-		push(val)
+		const nextAddr  = pop()
+		const nestDepth = rDepth()
+		IP = nestDepth === 0 ? 0 : nextAddr
 	}
 
 	/**
@@ -525,11 +529,7 @@ function forth (write) {
 	{
 		const val = fetch(addr)
 		push(val)
-
-		// Execute next XT
-		const nextXT = fetch(addr+8)
-		push(nextXT)
-		EXECUTE()
+		IP = addr
 	}
 
 	// -------------------------------------
@@ -556,6 +556,17 @@ function forth (write) {
 		const n2 = pop()
 		const n1 = pop()
 		push(n1 - n2)
+	}
+
+	/**
+	 * * ( n1 n2 -- n3 )
+	 * Multiply n1 by n2 giving the product n3.
+	 */
+	function STAR()
+	{
+		const n2 = pop()
+		const n1 = pop()
+		push(n1 * n2)
 	}
 
 	/**
@@ -1143,14 +1154,28 @@ function forth (write) {
 	}
 
 	/**
-	 * C" ( -- c-addr ) ( C: "ccc<quote>" -- )
-	 * Parse ccc delimited by " (double-quote).
-	 * Return c-addr, a counted string consisting of the characters ccc.
+	 * LITERAL (C: x -- ) (R: -- x )
+	 * Place x on the stack.
 	 */
-	function C_QUOTE()
+	function LITERAL()
 	{
-		const comma = '"'.charCodeAt(0)
-		push(comma)
+		const num = pop()
+		HERE()
+		const addr = pop()
+		push(100_000*(addr+8) + NATIVE_XT_ADDR+5) // literalRTS
+		COMMA()
+		push(num)
+		COMMA()
+	}
+
+	/**
+	 * ( -- c-addr ) ( C: "ccc<quote>" -- )
+	 * Parse ccc delimited by " (double-quote).
+	 */
+	function countedString()
+	{
+		const quotes = '"'.charCodeAt(0)
+		push(quotes)
 		PARSE()
 
 		const len   = pop()
@@ -1175,14 +1200,35 @@ function forth (write) {
 	}
 
 	/**
+	 * C" ( -- c-addr ) ( C: "ccc<quote>" -- )
+	 * Parse ccc delimited by " (double-quote).
+	 * Return c-addr, a counted string consisting of the characters ccc.
+	 */
+	function C_QUOTE()
+	{
+		countedString()
+
+		// Compile-time specifics
+		if (fetch(STATE_ADDR) !== 0)
+			LITERAL() // Append cAddr to current colon-def
+	}
+
+	/**
 	 * S" ( -- c-addr u ) ( C: "ccc<quote>" -- )
 	 * Parse ccc delimited by " (double-quote).
 	 * Return c-addr and u describing a string consisting of the characters ccc.
 	 */
 	function S_QUOTE()
 	{
-		C_QUOTE()
+		countedString()
 		COUNT()
+
+		// Compile-time specifics
+		if (fetch(STATE_ADDR) !== 0) {
+			SWAP()
+			LITERAL() // Append cAddr to current colon-def
+			LITERAL() // Append length to current colon-def
+		}
 	}
 
 	/**
@@ -1192,7 +1238,7 @@ function forth (write) {
 	 */
 	function DOT_QUOTE()
 	{
-		C_QUOTE()
+		countedString()
 		COUNT()
 		TYPE()
 	}
@@ -1419,10 +1465,11 @@ function forth (write) {
 	 */
 	function COMPILE_COMMA()
 	{
-		COMMA() // Store xt in the current colon-def
+		const xt  = pop()
+		const rts = xt % 10_000
 		HERE()
 		const addr = pop()
-		push(100_000*addr + NATIVE_XT_ADDR+5) // nextRTS
+		push(100_000*addr + rts)
 		COMMA()
 	}
 
