@@ -573,9 +573,9 @@ function forth (write) {
 	 */
 	function EQUALS()
 	{
-		const n2 = pop()
-		const n1 = pop()
-		push(n1 === n2 ? -1 : 0)
+		const x2 = pop()
+		const x1 = pop()
+		push(x1 === x2 ? -1 : 0)
 	}
 
 	/**
@@ -584,8 +584,8 @@ function forth (write) {
 	 */
 	function ZERO_EQUALS()
 	{
-		const n1 = pop()
-		push(n1 === 0 ? -1 : 0)
+		const x = pop()
+		push(x === 0 ? -1 : 0)
 	}
 
 	/**
@@ -633,9 +633,9 @@ function forth (write) {
 	 */
 	function PICK()
 	{
-		const u = pop()
-		const x = pick(u)
-		push(x)
+		const u  = pop()
+		const xu = pick(u)
+		push(xu)
 	}
 
 	/**
@@ -699,11 +699,7 @@ function forth (write) {
 	 * +n is the number of single-cell values contained in the data stack
 	 * before +n was placed on the stack.
 	 */
-	function DEPTH()
-	{
-		const n = depth()
-		push(n)
-	}
+	function DEPTH() { push( depth() ) }
 
 	// -------------------------------------
 	// Return Stack Operations
@@ -713,31 +709,19 @@ function forth (write) {
 	 * >R ( x -- ) ( R: -- x )
 	 * Move x to the return stack.
 	 */
-	function TO_R()
-	{
-		const x = pop()
-		rPush(x)
-	}
+	function TO_R() { rPush( pop() ) }
 
 	/**
 	 * R> ( -- x ) ( R: x -- )
 	 * Move x from the return stack to the data stack.
 	 */
-	function R_FROM()
-	{
-		const x = rPop()
-		push(x)
-	}
+	function R_FROM() { push( rPop() ) }
 
 	/**
 	 * R@ ( -- x ) ( R: x -- x )
 	 * Copy x from the return stack to the data stack.
 	 */
-	function R_FETCH()
-	{
-		const x = rPick(0)
-		push(x)
-	}
+	function R_FETCH() { push( rPick(0) ) }
 
 	/**
 	 * CHARS ( n1 -- n2 )
@@ -749,11 +733,7 @@ function forth (write) {
 	 * CELLS ( n1 -- n2 )
 	 * n2 is the size in address units of n1 cells.
 	 */
-	function CELLS()
-	{
-		const n1 = pop()
-		push(n1 * 8)
-	}
+	function CELLS() { push(pop() * 8) }
 
 	// -------------------------------------
 	// Memory Operations
@@ -839,11 +819,7 @@ function forth (write) {
 	 * ALLOT ( n -- )
 	 * If n is greater than zero, reserve n address units of data space.
 	 */
-	function ALLOT()
-	{
-		const n = pop()
-		DS += n
-	}
+	function ALLOT() { DS += pop() }
 
 	/**
 	 * , ( x -- )
@@ -968,7 +944,7 @@ function forth (write) {
 		HERE()
 		const pfa = pop()
 		const xt  = 100_000*pfa + NATIVE_XT_ADDR+2
-		store(xt, pfa - 8)
+		store(xt, pfa-8)
 
 		push(x)
 		COMMA()
