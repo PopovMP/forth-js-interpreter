@@ -397,9 +397,13 @@ function forth (write) {
 		addWord('FALSE',      FALSE,         0)
 		addWord('DROP',       DROP,          0)
 		addWord('DUP',        DUP,           0)
+		addWord('?DUP',       QUESTION_DUP,  0)
 		addWord('PICK',       PICK,          0)
 		addWord('OVER',       OVER,          0)
 		addWord('SWAP',       SWAP,          0)
+		addWord('NIP',        NIP,           0)
+		addWord('ROT',        ROT,           0)
+		addWord('TUCK',       TUCK,          0)
 		addWord('DEPTH',      DEPTH,         0)
 		addWord('R>',         R_FROM,        0)
 		addWord('>R',         TO_R,          0)
@@ -613,13 +617,24 @@ function forth (write) {
 	function DUP() { push( pick(0) ) }
 
 	/**
+	 * ?DUP ( x -- 0 | x x )
+	 * Duplicate x if it is non-zero.
+	 */
+	function QUESTION_DUP()
+	{
+		const x = pick(0)
+		if (x !== 0)
+			push(x)
+	}
+
+	/**
 	 * PICK ( xu...x1 x0 u -- xu...x1 x0 xu )
 	 * Remove u. Copy the xu to the top of the stack.
 	 */
 	function PICK()
 	{
-		const index = pop()
-		const x = pick(index)
+		const u = pop()
+		const x = pick(u)
 		push(x)
 	}
 
@@ -639,6 +654,44 @@ function forth (write) {
 		const x1 = pop()
 		push(x2)
 		push(x1)
+	}
+
+	/**
+	 * NIP ( x1 x2 -- x2 )
+	 * Drop the first item below the top of stack.
+	 */
+	function NIP()
+	{
+		const x2 = pop()
+		pop()
+		push(x2)
+	}
+
+	/**
+	 * ROT ( x1 x2 x3 -- x2 x3 x1 )
+	 * Rotate the top three stack entries.
+	 */
+	function ROT()
+	{
+		const x3 = pop()
+		const x2 = pop()
+		const x1 = pop()
+		push(x2)
+		push(x3)
+		push(x1)
+	}
+
+	/**
+	 * TUCK ( x1 x2 -- x2 x1 x2 )
+	 * Copy the first (top) stack item below the second stack item.
+	 */
+	function TUCK()
+	{
+		const x2 = pop()
+		const x1 = pop()
+		push(x2)
+		push(x1)
+		push(x2)
 	}
 
 	/**
@@ -739,6 +792,17 @@ function forth (write) {
 	}
 
 	/**
+	 * ! ( x a-addr -- )
+	 * Store x at a-addr.
+	 */
+	function STORE()
+	{
+		const aAddr = pop()
+		const x     = pop()
+		store(x, aAddr)
+	}
+
+	/**
 	 * @ ( a-addr -- x )
 	 * x is the value stored at a-addr.
 	 */
@@ -750,14 +814,25 @@ function forth (write) {
 	}
 
 	/**
-	 * ! ( x a-addr -- )
-	 * Store x at a-addr.
+	 * C! ( char c-addr -- )
+	 * Store char at c-addr.
 	 */
-	function STORE()
+	function C_STORE()
 	{
-		const aAddr = pop()
-		const x     = pop()
-		store(x, aAddr)
+		const cAddr = pop()
+		const char  = pop()
+		cStore(char, cAddr)
+	}
+
+	/**
+	 * C@ ( c-addr -- char  )
+	 * Fetch the character stored at c-addr.
+	 */
+	function C_FETCH()
+	{
+		const cAddr = pop()
+		const char  = cFetch(cAddr)
+		push(char)
 	}
 
 	/**
@@ -793,28 +868,6 @@ function forth (write) {
 		C_STORE()
 		push(1)
 		ALLOT()
-	}
-
-	/**
-	 * C! ( char c-addr -- )
-	 * Store char at c-addr.
-	 */
-	function C_STORE()
-	{
-		const cAddr = pop()
-		const char  = pop()
-		cStore(char, cAddr)
-	}
-
-	/**
-	 * C@ ( c-addr -- char  )
-	 * Fetch the character stored at c-addr.
-	 */
-	function C_FETCH()
-	{
-		const cAddr = pop()
-		const char  = cFetch(cAddr)
-		push(char)
 	}
 
 	/**
@@ -974,12 +1027,12 @@ function forth (write) {
 		const length = pop()
 		const cAddr  = pop()
 
-		let i = 0
-		while (i < length) {
-			const char = cFetch(cAddr+i)
+		let index = 0
+		while (index < length) {
+			const char = cFetch(cAddr + index)
 			push(char)
 			EMIT()
-			i += 1
+			index += 1
 		}
 	}
 
