@@ -391,6 +391,7 @@ function forth (write) {
 		addWord('',           valueRTS,      0|Hidden) // NATIVE_RTS_ADDR+2
 		addWord('',           literalRTS,    0|Hidden) // NATIVE_RTS_ADDR+3
 		addWord('',           unNestRTS,     0|Hidden) // NATIVE_RTS_ADDR+4
+		addWord('',           postponeRTS,   0|Hidden) // NATIVE_RTS_ADDR+5
 		addWord('+',          SUM,           0)
 		addWord('-',          MINUS,         0)
 		addWord('*',          STAR,          0)
@@ -465,6 +466,7 @@ function forth (write) {
 		addWord(':',          COLON,         0|Immediate)
 		addWord(';',          SEMICOLON,     0|Immediate)
 		addWord('IMMEDIATE',  IMMEDIATE,     0)
+		addWord('POSTPONE',   POSTPONE,      0|Immediate)
 	}
 
 	// -------------------------------------
@@ -515,6 +517,16 @@ function forth (write) {
 	{
 		const val = fetch(addr)
 		push(val)
+		IP = addr
+	}
+
+	/**
+	 * Compilation: ( "<spaces>name" -- )
+	 * @return {void}
+	 */
+	function postponeRTS(addr)
+	{
+		COMPILE_COMMA()
 		IP = addr
 	}
 
@@ -1140,18 +1152,16 @@ function forth (write) {
 	}
 
 	/**
-	 * LITERAL (C: x -- ) (R: -- x )
+	 * LITERAL (Comp: x -- ) (Run: -- x )
 	 * Place x on the stack.
 	 */
 	function LITERAL()
 	{
-		const num = pop()
 		HERE()
 		const addr = pop()
 		push(100_000*(addr+8) + NATIVE_RTS_ADDR+3) // literalRTS
 		COMMA()
-		push(num)
-		COMMA()
+		COMMA() // ( x -- )
 	}
 
 	/**
@@ -1695,6 +1705,21 @@ function forth (write) {
 		// Set Immediate flag
 		const flag = cFetch(nfa+31) | Immediate
 		cStore(flag, nfa+31)
+	}
+
+	/**
+	 * POSTPONE Compilation: ( "<spaces>name" -- )
+	 * Skip leading space delimiters. Parse name delimited by a space. Find name.
+	 * Append the compilation semantics of name to the current definition.
+	 */
+	function POSTPONE()
+	{
+		TICK() // ( -- xt )
+		LITERAL()
+		HERE()
+		const addr = pop()
+		push(100_000*addr + NATIVE_RTS_ADDR+5) // postponeRTS
+		COMMA()
 	}
 
 	// noinspection JSUnusedGlobalSymbols

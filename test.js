@@ -198,6 +198,30 @@ function testReady()
 	assert('immediate-def', 42, pop())
 })();
 
+(function () {
+	interpret(': MY+ POSTPONE + ; IMMEDIATE')
+	interpret(': fpe MY+ ;')
+	interpret('6 7 fpe DUP .')
+	assert('POSTPONE 1', 13, pop())
+
+	interpret(': fpe2  [ MY+ ] ;   6 7 fpe2  DUP .')
+	assert('POSTPONE 2', 13, pop())
+})();
+
+(function () {
+	interpret(': fp42 42 POSTPONE LITERAL ; IMMEDIATE')
+	interpret(': fps42 fp42 ;')
+	interpret('')
+	assert('POSTPONE 3', 42, pop())
+})();
+
+(function () {
+	interpret(': my-dup POSTPONE OVER POSTPONE OVER ; IMMEDIATE')
+	interpret(': dup-dup my-dup ;')
+	interpret('13 14 dup-dup + + + DUP .')
+	assert('POSTPONE 4', 54, pop())
+})();
+
 /*
 // TODO Make separate memory area for strings
 
