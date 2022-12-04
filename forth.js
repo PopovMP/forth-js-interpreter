@@ -92,10 +92,7 @@ function forth (write) {
 	 * @param {number} cAddr - character aligned address
 	 * @return {number}
 	 */
-	function cFetch(cAddr)
-	{
-		return _chars[cAddr]
-	}
+	function cFetch(cAddr) { return _chars[cAddr] }
 
 	/**
 	 * Pushes a number to data stack.
@@ -995,7 +992,7 @@ function forth (write) {
 	}
 
 	/**
-	 * ( c-addr u -- )
+	 * TYPE ( c-addr u -- )
 	 * If u is greater than zero, display the character string specified by c-addr and u.
 	 */
 	function TYPE()
@@ -1165,28 +1162,27 @@ function forth (write) {
 	}
 
 	/**
-	 * ( -- c-addr ) ( C: "ccc<quote>" -- )
+	 * ( -- c-addr ) ( Comp: "ccc<quote>" -- )
 	 * Parse ccc delimited by " (double-quote).
 	 */
 	function countedString()
 	{
-		const quotes = '"'.charCodeAt(0)
-		push(quotes)
+		push(34) // ASCII code of Double Quote: "
 		PARSE()
 
-		const len   = pop()
-		const cAddr = pop()
+		const length = pop()
+		const cAddr  = pop()
 
 		ALIGN()
 		HERE()
 		const defNFA = pop()
-		push(len+2)
+		push(length+2)
 		ALLOT()
 
 		cStore(0, defNFA)
-		cStore(len, defNFA+1)
+		cStore(length, defNFA+1)
 		let index = 0
-		while (index < len) {
+		while (index < length) {
 			const char = cFetch(cAddr + index)
 			cStore(char, defNFA + 2 + index)
 			index += 1
@@ -1196,7 +1192,7 @@ function forth (write) {
 	}
 
 	/**
-	 * C" ( -- c-addr ) ( C: "ccc<quote>" -- )
+	 * C" ( -- c-addr ) ( Comp: "ccc<quote>" -- )
 	 * Parse ccc delimited by " (double-quote).
 	 * Return c-addr, a counted string consisting of the characters ccc.
 	 */
@@ -1210,7 +1206,7 @@ function forth (write) {
 	}
 
 	/**
-	 * S" ( -- c-addr u ) ( C: "ccc<quote>" -- )
+	 * S" ( -- c-addr u ) ( Comp: "ccc<quote>" -- )
 	 * Parse ccc delimited by " (double-quote).
 	 * Return c-addr and u describing a string consisting of the characters ccc.
 	 */
@@ -1228,7 +1224,7 @@ function forth (write) {
 	}
 
 	/**
-	 * ." ( -- ) ( C: "ccc<quote>" -- )
+	 * ." ( -- ) ( Comp: "ccc<quote>" -- )
 	 * Parse ccc delimited by " (double-quote).
 	 * Append the run-time semantics: Display ccc.
 	 */
@@ -1250,16 +1246,17 @@ function forth (write) {
 		const len1   = pop()
 		const cAddr1 = pop()
 
+		const minLen = len1 < len2 ? len1 : len2
 		let charCmp = 0
-		let i = 0
-		while (i < Math.min(len1, len2)) {
-			const char1 = cFetch(cAddr1 + i)
-			const char2 = cFetch(cAddr2 + i)
+		let index   = 0
+		while (index < minLen) {
+			const char1 = cFetch(cAddr1 + index)
+			const char2 = cFetch(cAddr2 + index)
 			if (char1 !== char2) {
 				charCmp = char1 < char2 ? -1 : 1
 				break
 			}
-			i += 1
+			index += 1
 		}
 
 		if (charCmp === 0) {
@@ -1333,12 +1330,12 @@ function forth (write) {
 	 */
 	function C_MOVE()
 	{
-		const len      = pop()
+		const length   = pop()
 		const toAddr   = pop()
 		const fromAddr = pop()
 
 		let index = 0
-		while (index < len) {
+		while (index < length) {
 			const char = cFetch(fromAddr + index)
 			cStore(char, toAddr + index)
 			index += 1
@@ -1350,25 +1347,25 @@ function forth (write) {
 	 */
 	function TO_NUMBER()
 	{
-		const len   = pop()
-		const cAddr = pop()
+		const length = pop()
+		const cAddr  = pop()
 		pop()
 
-		let i      = 0
-		let res    = 0
+		let index  = 0
+		let result = 0
 		let sign   = 1
 		let factor = 0
-		while (i < len) {
-			const charCode = cFetch(cAddr + i)
-			if (i === 0) {
-				if (charCode === '-'.charCodeAt(0)) {
+		while (index < length) {
+			const charCode = cFetch(cAddr + index)
+			if (index === 0) {
+				if (charCode === 43) { // Char code of Minus: -
 					sign    = -1
-					i      += 1
+					index  += 1
 					factor += 1
 					continue
 				}
-				if (charCode === '+'.charCodeAt(0)) {
-					i      += 1
+				if (charCode === 45) { // Char code of Plus: +
+					index  += 1
 					factor += 1
 					continue
 				}
@@ -1376,23 +1373,22 @@ function forth (write) {
 
 			if (47 < charCode && charCode < 58) {
 				factor += 1
-				res += (charCode - 48) * (10 ** (len - factor))
+				result += (charCode - 48) * (10 ** (length - factor))
 			}
 			else {
 				// Not  a number
 				push(0)
-				push(cAddr + i)
-				push(len - i)
+				push(cAddr + index)
+				push(length - index)
 				return
 			}
 
-			i += 1
+			index += 1
 		}
 
 		// Number
-		const num = res * sign
-		push(num)
-		push(cAddr + i)
+		push(sign * result)
+		push(cAddr + index)
 		push(0)
 	}
 
@@ -1458,8 +1454,9 @@ function forth (write) {
 			TO_R()
 			IP = rts-8 // Because NEXT will increment it
 		}
-		else
+		else {
 			throw new Error('Invalid XT')
+		}
 	}
 
 	/**
@@ -1518,7 +1515,7 @@ function forth (write) {
 	}
 
 	/**
-	 * ( -- char )
+	 * BL ( -- char )
 	 * char is the character value for a space.
 	 */
 	function BL() { push(32) }
