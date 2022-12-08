@@ -1,5 +1,5 @@
 {
-  "name": "forth-js",
+  "name": "forth-js-interpreter",
   "version": "0.1.0",
   "description": "Forth interpreter in JS",
   "main": "forth.js",

@@ -42,11 +42,11 @@ function forth (write) {
 	/** @property {number} R - Return stack pointer */
 	let R = RET_STACK_ADDR
 
-	/** @property {number} IP - (Instruction Pointer) - a-addr of next XT to execute at run-time */
-	let IP = 0
-
 	/** @property {number} SFP - String Field Pointer */
 	let SFP = STRING_FIELD_ADDR
+
+	/** @property {number} IP - (Instruction Pointer) - a-addr of next XT to execute at run-time */
+	let IP = 0
 
 	// Declare native words
 	addWords()
