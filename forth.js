@@ -1280,9 +1280,8 @@ function forth (write) {
 	 */
 	function FIND()
 	{
-		COUNT()
-		const nameLen  = pop()
 		const nameAddr = pop()
+		const nameLen  = cFetch(nameAddr)
 
 		let currNFA = fetch(CURRENT_DEF_ADDR)
 		while (currNFA > 0) {
@@ -1295,8 +1294,8 @@ function forth (write) {
 				// Compare names characters
 				let i = 0
 				while (i < nameLen) {
-					const currChar = cFetch(currNFA + 1 + i)
-					const nameChar = cFetch(nameAddr + i)
+					const currChar = cFetch(currNFA  + 1 + i)
+					const nameChar = cFetch(nameAddr + 1 + i)
 					if (currChar !== nameChar) {
 						found = false
 						break
@@ -1318,7 +1317,7 @@ function forth (write) {
 		}
 
 		// Not found
-		push(nameAddr-1)
+		push(nameAddr)
 		push(0)
 	}
 
