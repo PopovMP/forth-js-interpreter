@@ -20,6 +20,7 @@ function forth (write) {
 	const PARSE_WORD_ADDR         =  9_544 // size 32 cells
 	const NATIVE_RTS_ADDR         =  9_800
 	const DSP_START_ADDR          = 10_000
+	const STRING_FIELD_ADDR       = 56_000
 	const MEMORY_SIZE             = 64_000
 
 	const Immediate = 1
@@ -43,6 +44,9 @@ function forth (write) {
 
 	/** @property {number} IP - (Instruction Pointer) - a-addr of next XT to execute at run-time */
 	let IP = 0
+
+	/** @property {number} SFP - String Field Pointer */
+	let SFP = STRING_FIELD_ADDR
 
 	// Declare native words
 	addWords()
@@ -1173,22 +1177,16 @@ function forth (write) {
 		const length = pop()
 		const cAddr  = pop()
 
-		ALIGN()
-		HERE()
-		const defNFA = pop()
-		push(length+2)
-		ALLOT()
-
-		cStore(0, defNFA)
-		cStore(length, defNFA+1)
+		cStore(length, SFP)
 		let index = 0
 		while (index < length) {
 			const char = cFetch(cAddr + index)
-			cStore(char, defNFA + 2 + index)
+			cStore(char, SFP + 1 + index)
 			index += 1
 		}
 
-		push(defNFA+1)
+		push(SFP)
+		SFP += length + 1
 	}
 
 	/**

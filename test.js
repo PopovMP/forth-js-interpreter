@@ -55,12 +55,12 @@ function testReady()
 })();
 
 (function () {
-	interpret('S" Hello, World!" SWAP DROP')
+	interpret('S" Hello, World!" OVER OVER TYPE SWAP DROP')
 	assert('Interpretation S"', 13, pop())
 })();
 
 (function () {
-	interpret('C" Hello, World!" C@ ')
+	interpret('C" Hello, World!" DUP COUNT TYPE C@ ')
 	assert('Interpretation C"', 13, pop())
 })();
 
@@ -222,24 +222,36 @@ function testReady()
 	assert('POSTPONE 4', 54, pop())
 })();
 
-/*
-// TODO Make separate memory area for strings
-
 (function () {
-	interpret(`: colon-def-S S" Hello, World!" ;   colon-def-S TYPE `)
+	interpret(`: def-s-string S" S String test" ;   def-s-string TYPE `)
 	assert('Colon def S', 1, 1)
 })();
 
 (function () {
-	interpret(`: colon-def-C" C" Hello, World!" ;   colon-def-C" COUNT TYPE `)
-	assert('Colon-def C"', 1, 1)
+	interpret(`: def-counted-string C" Counted String test" ;   def-counted-string COUNT TYPE `)
+	assert('Def with Counted string', 1, 1)
 })();
 
 (function () {
-	interpret(`: colon-def-." ." Hello, World!" ; `)
-	assert('Colon-def ."', 1, 1)
+	interpret(`: def-dot-string ." Dot String test" ;   def-dot-string `)
+	assert('Def with Dot string', 1, 1)
 })();
-*/
+
+(function () {
+	// Dump String Field Area
+	interpret(`56000 CONSTANT STRING_FIELD_ADDR`)
+	interpret(`VARIABLE SFP`)
+	interpret(`STRING_FIELD_ADDR SFP !`)
+	interpret(`SFP @   DUP COUNT TYPE   C@ 1 + SFP @ + SFP !`)
+	interpret(`SFP @   DUP COUNT TYPE   C@ 1 + SFP @ + SFP !`)
+	interpret(`SFP @   DUP COUNT TYPE   C@ 1 + SFP @ + SFP !`)
+	interpret(`SFP @   DUP COUNT TYPE   C@ 1 + SFP @ + SFP !`)
+	interpret(`SFP @   DUP COUNT TYPE   C@ 1 + SFP @ + SFP !`)
+	interpret(`SFP @   DUP COUNT TYPE   C@ 1 + SFP @ + SFP !`)
+	interpret(`SFP @   DUP COUNT TYPE   C@ 1 + SFP @ + SFP !`)
+	interpret(`SFP @   DUP COUNT TYPE   C@ 1 + SFP @ + SFP !`)
+	assert('DUMP String Filed', 1, 1)
+})();
 
 
 testReady()
