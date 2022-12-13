@@ -508,6 +508,8 @@ function forth (write) {
 		addWord('IF',         IF,            0|Immediate|NoInterpretation)
 		addWord('ELSE',       ELSE,          0|Immediate|NoInterpretation)
 		addWord('THEN',       THEN,          0|Immediate|NoInterpretation)
+		addWord('BEGIN',      BEGIN,         0|Immediate|NoInterpretation)
+		addWord('UNTIL',      UNTIL,         0|Immediate|NoInterpretation)
 	}
 
 	// -------------------------------------
@@ -1921,6 +1923,37 @@ function forth (write) {
 	{
 		const orig = cfPop()
 		store(DS, orig)
+	}
+
+	/**
+	 * BEGIN - no interpretation semantics
+	 * ( C: -- dest )
+	 * Put the next location for a transfer of control, dest, onto the control flow stack.
+	 * Append the run-time semantics given below to the current definition.
+	 * ( -- )
+	 * Continue execution.
+	 */
+	function BEGIN()
+	{
+		cfPush(DS)
+	}
+
+	/**
+	 * UNTIL - no interpretation semantics
+	 * ( C: dest -- )
+	 * Append the run-time semantics given below to the current definition,
+	 * resolving the backward reference dest.
+	 * ( x -- )
+	 * If all bits of x are zero, continue execution at the location specified by dest.
+	 */
+	function UNTIL()
+	{
+		push(NATIVE_RTS_ADDR+6) // (0branch)
+		COMPILE_COMMA()
+
+		const dest = cfPop()
+		push(dest)
+		COMMA()
 	}
 
 	// noinspection JSUnusedGlobalSymbols

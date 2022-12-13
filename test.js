@@ -287,4 +287,16 @@ function testReady()
 	assert('0 IF ELSE', 42, pop())
 })();
 
+// BEGIN UNTIL
+
+(function () {
+	interpret(`: until1 BEGIN 42 TRUE UNTIL ;   until1  .S`)
+	assert('until1', 42, pop())
+})();
+
+(function () {
+	interpret(`: sumRange 0 BEGIN   OVER +   SWAP 1 -   SWAP OVER   0= UNTIL   SWAP DROP ;   100 sumRange .S`)
+	assert('sumRange', 5050, pop())
+})();
+
 testReady()
