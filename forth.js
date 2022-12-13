@@ -427,7 +427,13 @@ function forth (write) {
 		addWord('-',          MINUS,         0)
 		addWord('*',          STAR,          0)
 		addWord('=',          EQUALS,        0)
+		addWord('>',          GREATER_THAN,  0)
+		addWord('<',          LOWER_THAN,    0)
+		addWord('<>',         NOT_EQUALS,    0)
 		addWord('0=',         ZERO_EQUALS,   0)
+		addWord('0<',         ZERO_LESS,     0)
+		addWord('0>',         ZERO_GREATER,  0)
+		addWord('0<>',        ZERO_NOT_EQUALS, 0)
 		addWord('TRUE',       TRUE,          0)
 		addWord('FALSE',      FALSE,         0)
 		addWord('DROP',       DROP,          0)
@@ -647,6 +653,36 @@ function forth (write) {
 	}
 
 	/**
+	 * > ( x1 x2 -- flag )
+	 */
+	function GREATER_THAN()
+	{
+		const x2 = pop()
+		const x1 = pop()
+		push(x1 > x2 ? -1 : 0)
+	}
+
+	/**
+	 * < ( x1 x2 -- flag )
+	 */
+	function LOWER_THAN()
+	{
+		const x2 = pop()
+		const x1 = pop()
+		push(x1 < x2 ? -1 : 0)
+	}
+
+	/**
+	 * < ( x1 x2 -- flag )
+	 */
+	function NOT_EQUALS()
+	{
+		const x2 = pop()
+		const x1 = pop()
+		push(x1 !== x2 ? -1 : 0)
+	}
+
+	/**
 	 * 0= ( x -- flag )
 	 * flag is true if and only if x is equal to zero.
 	 */
@@ -654,6 +690,33 @@ function forth (write) {
 	{
 		const x = pop()
 		push(x === 0 ? -1 : 0)
+	}
+
+	/**
+	 * 0< ( x -- flag )
+	 */
+	function ZERO_LESS()
+	{
+		const x = pop()
+		push(x < 0 ? -1 : 0)
+	}
+
+	/**
+	 * 0> ( x -- flag )
+	 */
+	function ZERO_GREATER()
+	{
+		const x = pop()
+		push(x > 0 ? -1 : 0)
+	}
+
+	/**
+	 * 0<> ( x -- flag )
+	 */
+	function ZERO_NOT_EQUALS()
+	{
+		const x = pop()
+		push(x !== 0 ? -1 : 0)
 	}
 
 	/**
