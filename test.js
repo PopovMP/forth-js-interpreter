@@ -299,4 +299,19 @@ function testReady()
 	assert('sumRange', 5050, pop())
 })();
 
+// BEGIN UNTIL REPEAT
+
+
+(function () {
+	interpret(`: FACTORIAL`)
+	interpret(`   DUP 2 < IF DROP 1 EXIT THEN`)
+	interpret(`   DUP`)
+	interpret(`   BEGIN DUP 2 > WHILE`)
+	interpret(`   1 - SWAP OVER * SWAP`)
+	interpret(`   REPEAT DROP`)
+	interpret(`;`)
+	interpret(`5 FACTORIAL   .S`)
+	assert('FACTORIAL', 120, pop())
+})();
+
 testReady()

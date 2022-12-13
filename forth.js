@@ -502,6 +502,7 @@ function forth (write) {
 		addWord('[',          LEFT_BRACKET,  0|Immediate)
 		addWord(':',          COLON,         0|Immediate)
 		addWord(';',          SEMICOLON,     0|Immediate)
+		addWord('EXIT',       EXIT,          0)
 		addWord('IMMEDIATE',  IMMEDIATE,     0)
 		addWord('POSTPONE',   POSTPONE,      0|Immediate)
 		addWord('AHEAD',      AHEAD,         0|Immediate|NoInterpretation)
@@ -510,6 +511,8 @@ function forth (write) {
 		addWord('THEN',       THEN,          0|Immediate|NoInterpretation)
 		addWord('BEGIN',      BEGIN,         0|Immediate|NoInterpretation)
 		addWord('UNTIL',      UNTIL,         0|Immediate|NoInterpretation)
+		addWord('WHILE',      WHILE,         0|Immediate|NoInterpretation)
+		addWord('REPEAT',     REPEAT,        0|Immediate|NoInterpretation)
 	}
 
 	// -------------------------------------
@@ -1821,6 +1824,18 @@ function forth (write) {
 	}
 
 	/**
+	 * EXIT ( -- ) ( R: nest-sys -- )
+	 * Return control to the calling definition specified by nest-sys.
+	 * Before executing EXIT within a do-loop, a program shall discard
+	 * the loop-control parameters by executing UNLOOP.
+	 */
+	function EXIT()
+	{
+		R_FETCH()
+		DS = pop()
+	}
+
+	/**
 	 * ( -- )
 	 * Make the most recent definition an immediate word.
 	 */
@@ -1929,7 +1944,6 @@ function forth (write) {
 	 * BEGIN - no interpretation semantics
 	 * ( C: -- dest )
 	 * Put the next location for a transfer of control, dest, onto the control flow stack.
-	 * Append the run-time semantics given below to the current definition.
 	 * ( -- )
 	 * Continue execution.
 	 */
@@ -1954,6 +1968,51 @@ function forth (write) {
 		const dest = cfPop()
 		push(dest)
 		COMMA()
+	}
+
+	/**
+	 * WHILE - no interpretation
+	 * ( C: dest -- orig dest )
+	 * Put the location of a new unresolved forward reference orig onto the control flow stack,
+	 * under the existing dest.
+	 * The semantics are incomplete until orig and dest are resolved (e.g., by REPEAT).
+	 * ( x -- )
+	 * If all bits of x are zero, continue execution at the location specified by the resolution of orig.
+	 */
+	function WHILE()
+	{
+		const dest = cfPop()
+
+		push(NATIVE_RTS_ADDR+6) // (0branch)
+		COMPILE_COMMA()
+
+		cfPush(DS)
+
+		push(0) // Empty orig
+		COMMA()
+
+		cfPush(dest)
+	}
+
+	/**
+	 * REPEAT - no interpretation
+	 * ( C: orig dest -- )
+	 * resolving the backward reference dest.
+	 * Resolve the forward reference orig using the location following the appended run-time semantics.
+	 * ( -- )
+	 * Continue execution at the location given by dest.
+	 */
+	function REPEAT()
+	{
+		push(NATIVE_RTS_ADDR+7) // (branch)
+		COMPILE_COMMA()
+
+		const dest = cfPop()
+		push(dest)
+		COMMA()
+
+		const orig = cfPop()
+		store(DS, orig)
 	}
 
 	// noinspection JSUnusedGlobalSymbols
