@@ -15,8 +15,9 @@ function forth (write) {
 	const INPUT_BUFFER_ADDR       =    120
 	const INPUT_BUFFER_SIZE       =    256
 	const DATA_STACK_ADDR         =    376 // size 32 cells
-	const RET_STACK_ADDR          =    632 // size 1024 cells
-	const POD_ADDR                =  8_824 // size 90 cells
+	const RET_STACK_ADDR          =    632 // size 1050 cells
+	const CONTROL_FLOW_ADDR       =  9_032 // size 32 cells
+	const POD_ADDR                =  9_288 // size 32 cells
 	const PARSE_WORD_ADDR         =  9_544 // size 32 cells
 	const NATIVE_RTS_ADDR         =  9_800
 	const DSP_START_ADDR          = 10_000
@@ -25,6 +26,7 @@ function forth (write) {
 
 	const Immediate = 1
 	const Hidden    = 2
+	const NoInterpretation = 4
 
 	const _buffer = new ArrayBuffer(MEMORY_SIZE)
 	const _chars  = new Uint8Array(_buffer)
@@ -33,14 +35,17 @@ function forth (write) {
 	/** @type { {[CFA: number]: (PFA: number) => void } */
 	const _wordMap = {}
 
-	/** @property {number} DS - data-space pointer */
-	let DS = DSP_START_ADDR
-
 	/** @property {number} S - data Stack pointer */
 	let S = DATA_STACK_ADDR
 
 	/** @property {number} R - Return stack pointer */
 	let R = RET_STACK_ADDR
+
+	/** @property {number} CF - Control-flow stack pointer */
+	let CF = CONTROL_FLOW_ADDR
+
+	/** @property {number} DS - data-space pointer */
+	let DS = DSP_START_ADDR
 
 	/** @property {number} SFP - String Field Pointer */
 	let SFP = STRING_FIELD_ADDR
@@ -193,6 +198,29 @@ function forth (write) {
 	 * @return {void}
 	 */
 	function rEmpty() { R = RET_STACK_ADDR }
+
+	/**
+	 * Pushes a number to control-flow stack.
+	 * @param {number} x
+	 * @return {void}
+	 */
+	function cfPush(x)
+	{
+		store(x, CF)
+		CF += 8
+	}
+
+	/**
+	 * Gets the top number of control-flow stack
+	 * @return {number}
+	 */
+	function cfPop()
+	{
+		if (CF === CONTROL_FLOW_ADDR)
+			throw new Error('Stack underflow')
+		CF -= 8
+		return fetch(CF)
+	}
 
 	/**
 	 * Adds a native word record to the map
@@ -393,6 +421,8 @@ function forth (write) {
 		addWord('',           literalRTS,    0|Hidden) // NATIVE_RTS_ADDR+3
 		addWord('',           unNestRTS,     0|Hidden) // NATIVE_RTS_ADDR+4
 		addWord('',           postponeRTS,   0|Hidden) // NATIVE_RTS_ADDR+5
+		addWord('',           zeroBranch,    0|Hidden) // NATIVE_RTS_ADDR+6
+		addWord('',           branch,        0|Hidden) // NATIVE_RTS_ADDR+7
 		addWord('+',          SUM,           0)
 		addWord('-',          MINUS,         0)
 		addWord('*',          STAR,          0)
@@ -468,6 +498,10 @@ function forth (write) {
 		addWord(';',          SEMICOLON,     0|Immediate)
 		addWord('IMMEDIATE',  IMMEDIATE,     0)
 		addWord('POSTPONE',   POSTPONE,      0|Immediate)
+		addWord('AHEAD',      AHEAD,         0|Immediate|NoInterpretation)
+		addWord('IF',         IF,            0|Immediate|NoInterpretation)
+		addWord('ELSE',       ELSE,          0|Immediate|NoInterpretation)
+		addWord('THEN',       THEN,          0|Immediate|NoInterpretation)
 	}
 
 	// -------------------------------------
@@ -502,8 +536,7 @@ function forth (write) {
 	 */
 	function unNestRTS(pfa)
 	{
-		R_FROM()
-		const callerAddr = pop()
+		const callerAddr = rPop()
 		const nestDepth  = rDepth()
 		IP = nestDepth === 0 ? 0 : callerAddr
 	}
@@ -529,6 +562,40 @@ function forth (write) {
 	{
 		COMPILE_COMMA()
 		IP = addr
+	}
+
+	/**
+	 * (branch) ( -- )
+	 * Fetches orig from next byte.
+	 * Sets IP to orig
+	 * @param {number} addr
+	 * @return {void}
+	 */
+	function branch(addr)
+	{
+		const orig = fetch(addr+8)
+		IP = orig-8 // NEXT adds 8
+	}
+
+	/**
+	 * (0branch) ( flag -- )
+	 * Pops a flag from the stack.
+	 * Fetches orig from next byte.
+	 * Sets IP to orig if flag is 0
+	 * @param {number} addr
+	 * @return {void}
+	 */
+	function zeroBranch(addr)
+	{
+		const flag = pop()
+		const orig = fetch(addr+8)
+
+		if (orig < DSP_START_ADDR || STRING_FIELD_ADDR <= orig)
+			throw new Error('Wrong branch addr. Given: ' + orig)
+
+		IP += 8         // Eat orig addr
+		if (flag === 0)
+			IP = orig-8 // NEXT adds 8
 	}
 
 	// -------------------------------------
@@ -1714,6 +1781,83 @@ function forth (write) {
 		const addr = pop()
 		push(100_000*addr + NATIVE_RTS_ADDR+5) // postponeRTS
 		COMMA()
+	}
+
+	/**
+	 * AHEAD - no interpretation semantics
+	 * ( C: -- orig )
+	 * Put the location of a new unresolved forward reference orig onto the control flow stack.
+	 * Append the run-time semantics given below to the current definition.
+	 * The semantics are incomplete until orig is resolved (e.g., by THEN).
+	 * Run-time ( -- )
+	 * Continue execution at the location specified by the resolution of orig
+	 */
+	function AHEAD()
+	{
+		push(NATIVE_RTS_ADDR+7) // (branch)
+		COMPILE_COMMA()
+
+		HERE()
+		const addr = pop()
+		cfPush(addr)
+
+		push(0) // Empty orig
+		COMMA()
+	}
+
+	/**
+	 * IF - no interpretation semantics
+	 * ( C: -- orig )
+	 * Put the location of a new unresolved forward reference orig onto the control flow stack.
+	 * The semantics are incomplete until orig is resolved, e.g., by THEN or ELSE.
+	 * ( x -- )
+	 * If all bits of x are zero, continue execution at the location specified by the resolution of orig.
+	 */
+	function IF()
+	{
+		push(NATIVE_RTS_ADDR+6) // (0branch)
+		COMPILE_COMMA()
+
+		cfPush(DS)
+
+		push(0) // Empty orig
+		COMMA()
+	}
+
+	/**
+	 * ELSE - no interpretation semantics
+	 * ( C: orig1 -- orig2 )
+	 * Put the location of a new unresolved forward reference orig2 onto the control flow stack.
+	 * Append the run-time semantics given below to the current definition.
+	 * The semantics will be incomplete until orig2 is resolved (e.g., by THEN).
+	 * Resolve the forward reference orig1 using the location following the appended run-time semantics.
+	 */
+	function ELSE()
+	{
+		// When fall through IF branch to THEN
+		push(NATIVE_RTS_ADDR+7) // (branch)
+		COMPILE_COMMA()
+
+		// Set current addr to IF's orig
+		const orig = cfPop()
+		store(DS, orig)
+
+		// Prepare orig for THEN
+		cfPush(DS)
+
+		push(0) // Empty orig
+		COMMA()
+	}
+
+	/**
+	 * THEN - no interpretation semantics
+	 * ( C: orig -- )
+	 * Resolve the forward reference orig using the location of the appended run-time semantics.
+	 */
+	function THEN()
+	{
+		const orig = cfPop()
+		store(DS, orig)
 	}
 
 	// noinspection JSUnusedGlobalSymbols

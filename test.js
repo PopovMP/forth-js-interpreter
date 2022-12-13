@@ -253,5 +253,38 @@ function testReady()
 	assert('DUMP String Filed', 1, 1)
 })();
 
+// AHEAD THEN
+
+(function () {
+	interpret(`: ah1 42 AHEAD DROP 13 THEN ;   ah1   .S`)
+	assert('AHEAD', 42, pop())
+})();
+
+// IF ELSE THEN
+
+(function () {
+	interpret(`: if1 13 1 IF DROP 42 THEN ;   if1   .S`)
+	assert('1 IF', 42, pop())
+})();
+
+(function () {
+	interpret(`: if2 42 0 IF DROP 13 THEN ;   if2   .S`)
+	assert('0 IF', 42, pop())
+})();
+
+(function () {
+	interpret(`: if3 1 IF 42 ELSE 13 THEN ;   if3   .S`)
+	assert('1 IF ELSE', 42, pop())
+})();
+
+(function () {
+	interpret(`: if4 0 IF 13 ELSE 42 THEN ;   if4   .S`)
+	assert('0 IF ELSE', 42, pop())
+})();
+
+(function () {
+	interpret(`: if5 0 IF 13 ELSE if3 THEN ;   if5   .S`)
+	assert('0 IF ELSE', 42, pop())
+})();
 
 testReady()
