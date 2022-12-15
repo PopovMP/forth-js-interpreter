@@ -301,17 +301,24 @@ function testReady()
 
 // BEGIN UNTIL REPEAT
 
+(function () {
+	interpret(`: FACTORIAL                   `)
+	interpret(`   DUP 2 < IF DROP 1 EXIT THEN`)
+	interpret(`   DUP                        `)
+	interpret(`   BEGIN DUP 2 > WHILE        `)
+	interpret(`      1 - SWAP OVER * SWAP    `)
+	interpret(`   REPEAT                     `)
+	interpret(`   DROP                       `)
+	interpret(`;                             `)
+	interpret(`5 FACTORIAL   .S              `)
+	assert('FACTORIAL', 120, pop())
+})();
+
+// BEGIN AGAIN
 
 (function () {
-	interpret(`: FACTORIAL`)
-	interpret(`   DUP 2 < IF DROP 1 EXIT THEN`)
-	interpret(`   DUP`)
-	interpret(`   BEGIN DUP 2 > WHILE`)
-	interpret(`   1 - SWAP OVER * SWAP`)
-	interpret(`   REPEAT DROP`)
-	interpret(`;`)
-	interpret(`5 FACTORIAL   .S`)
-	assert('FACTORIAL', 120, pop())
+	interpret(`: ag1 0 BEGIN   1 +   DUP 42 = IF EXIT THEN   AGAIN ;   ag1 .S`)
+	assert('ag1', 42, pop())
 })();
 
 testReady()

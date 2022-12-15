@@ -510,6 +510,7 @@ function forth (write) {
 		addWord('ELSE',       ELSE,          0|Immediate|NoInterpretation)
 		addWord('THEN',       THEN,          0|Immediate|NoInterpretation)
 		addWord('BEGIN',      BEGIN,         0|Immediate|NoInterpretation)
+		addWord('AGAIN',      AGAIN,         0|Immediate|NoInterpretation)
 		addWord('UNTIL',      UNTIL,         0|Immediate|NoInterpretation)
 		addWord('WHILE',      WHILE,         0|Immediate|NoInterpretation)
 		addWord('REPEAT',     REPEAT,        0|Immediate|NoInterpretation)
@@ -1831,8 +1832,7 @@ function forth (write) {
 	 */
 	function EXIT()
 	{
-		R_FETCH()
-		DS = pop()
+		IP = rPop()
 	}
 
 	/**
@@ -1950,6 +1950,24 @@ function forth (write) {
 	function BEGIN()
 	{
 		cfPush(DS)
+	}
+
+	/**
+	 * AGAIN - no interpretation
+	 * ( C: dest -- )
+	 * Append the run-time semantics given below to the current definition, resolving the backward reference dest.
+	 * ( -- )
+	 * Continue execution at the location specified by dest.
+	 * If no other control flow words are used, any program code after AGAIN will not be executed.
+	 */
+	function AGAIN()
+	{
+		push(NATIVE_RTS_ADDR+7) // (branch)
+		COMPILE_COMMA()
+
+		const dest = cfPop()
+		push(dest)
+		COMMA()
 	}
 
 	/**
