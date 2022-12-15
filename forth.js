@@ -423,6 +423,8 @@ function forth (write) {
 		addWord('',           postponeRTS,   0|Hidden) // NATIVE_RTS_ADDR+5
 		addWord('',           zeroBranch,    0|Hidden) // NATIVE_RTS_ADDR+6
 		addWord('',           branch,        0|Hidden) // NATIVE_RTS_ADDR+7
+		addWord('',           doRTS,         0|Hidden) // NATIVE_RTS_ADDR+8
+		addWord('',           loopRTS,       0|Hidden) // NATIVE_RTS_ADDR+9
 		addWord('+',          SUM,           0)
 		addWord('-',          MINUS,         0)
 		addWord('*',          STAR,          0)
@@ -514,6 +516,8 @@ function forth (write) {
 		addWord('UNTIL',      UNTIL,         0|Immediate|NoInterpretation)
 		addWord('WHILE',      WHILE,         0|Immediate|NoInterpretation)
 		addWord('REPEAT',     REPEAT,        0|Immediate|NoInterpretation)
+		addWord('DO',         DO,            0|Immediate|NoInterpretation)
+		addWord('LOOP',       LOOP,          0|Immediate|NoInterpretation)
 	}
 
 	// -------------------------------------
@@ -608,6 +612,44 @@ function forth (write) {
 		IP += 8         // Eat orig addr
 		if (flag === 0)
 			IP = orig-8 // NEXT adds 8
+	}
+
+	/**
+	 * DO ( n1 | u1 n2 | u2 -- ) ( R: -- loop-sys )
+	 * Set up loop control parameters with index n2 | u2 and limit n1 | u1.
+	 * An ambiguous condition exists if n1 | u1 and n2 | u2 are not both the same type.
+	 * Anything already on the return stack becomes unavailable until the loop-control parameters are discarded.
+	 */
+	function doRTS()
+	{
+		const index = pop()
+		const limit = pop()
+		rPush(limit)
+		rPush(index)
+	}
+
+	/**
+	 * ( -- ) ( R: loop-sys1 -- | loop-sys2 )
+	 * Add one to the loop index.
+	 * If the loop index is then equal to the loop limit,
+	 * discard the loop parameters and continue execution immediately following the loop.
+	 * Otherwise, continue execution at the beginning of the loop.
+	 * @param {number} addr
+	 */
+	function loopRTS(addr)
+	{
+		const index = rPop() + 1
+		const limit = rPop()
+
+		if (index < limit) {
+			rPush(limit)
+			rPush(index)
+			const dest = fetch(addr+8)
+			IP = dest-8
+		}
+		else {
+			IP = addr+8 // Skip dest
+		}
 	}
 
 	// -------------------------------------
@@ -2031,6 +2073,35 @@ function forth (write) {
 
 		const orig = cfPop()
 		store(DS, orig)
+	}
+
+	/**
+	 * DO - no interpretation
+	 * ( C: -- do-sys )
+	 * Place do-sys onto the control-flow stack.
+	 */
+	function DO()
+	{
+		push(NATIVE_RTS_ADDR+8) // doRTS
+		COMPILE_COMMA()
+
+		cfPush(DS)
+	}
+
+	/**
+	 * LOOP - no interpretation
+	 * ( C: do-sys -- )
+	 * Resolve the destination of all unresolved occurrences of LEAVE between the location given by do-sys and
+	 * the next location for a transfer of control, to execute the words following the LOOP.
+	 */
+	function LOOP()
+	{
+		push(NATIVE_RTS_ADDR+9) // loopRTS
+		COMPILE_COMMA()
+
+		const dest = cfPop()
+		push(dest)
+		COMMA()
 	}
 
 	// noinspection JSUnusedGlobalSymbols

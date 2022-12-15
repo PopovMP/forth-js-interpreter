@@ -321,4 +321,12 @@ function testReady()
 	assert('ag1', 42, pop())
 })();
 
+// DO LOOP
+
+(function () {
+	interpret(`: do1 1 DO   1 +   LOOP ;   1 42 do1 .S`)
+	assert('do1', 42, pop())
+})();
+
+
 testReady()
