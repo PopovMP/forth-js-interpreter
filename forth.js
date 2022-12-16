@@ -425,6 +425,8 @@ function forth (write) {
 		addWord('',           branch,        0|Hidden) // NATIVE_RTS_ADDR+7
 		addWord('',           doRTS,         0|Hidden) // NATIVE_RTS_ADDR+8
 		addWord('',           loopRTS,       0|Hidden) // NATIVE_RTS_ADDR+9
+		addWord('',           iRTS,          0|Hidden) // NATIVE_RTS_ADDR+10
+		addWord('',           jRTS,          0|Hidden) // NATIVE_RTS_ADDR+11
 		addWord('+',          SUM,           0)
 		addWord('-',          MINUS,         0)
 		addWord('*',          STAR,          0)
@@ -518,6 +520,8 @@ function forth (write) {
 		addWord('REPEAT',     REPEAT,        0|Immediate|NoInterpretation)
 		addWord('DO',         DO,            0|Immediate|NoInterpretation)
 		addWord('LOOP',       LOOP,          0|Immediate|NoInterpretation)
+		addWord('I',          I,             0|Immediate|NoInterpretation)
+		addWord('J',          J,             0|Immediate|NoInterpretation)
 	}
 
 	// -------------------------------------
@@ -650,6 +654,26 @@ function forth (write) {
 		else {
 			IP = addr+8 // Skip dest
 		}
+	}
+
+	/**
+	 * ( -- n | u ) ( R: loop-sys -- loop-sys )
+	 * n | u is a copy of the current (innermost) loop index.
+	 */
+	function iRTS()
+	{
+		const i = rPick(0)
+		push(i)
+	}
+
+	/**
+	 * ( -- n | u ) ( R: loop-sys1 loop-sys2 -- loop-sys1 loop-sys2 )
+	 * n | u is a copy of the next-outer loop index.
+	 */
+	function jRTS()
+	{
+		const j = rPick(2)
+		push(j)
 	}
 
 	// -------------------------------------
@@ -2102,6 +2126,24 @@ function forth (write) {
 		const dest = cfPop()
 		push(dest)
 		COMMA()
+	}
+
+	/**
+	 * I
+	 */
+	function I()
+	{
+		push(NATIVE_RTS_ADDR+10) // iRTS
+		COMPILE_COMMA()
+	}
+
+	/**
+	 * J
+	 */
+	function J()
+	{
+		push(NATIVE_RTS_ADDR+11) // jRTS
+		COMPILE_COMMA()
 	}
 
 	// noinspection JSUnusedGlobalSymbols

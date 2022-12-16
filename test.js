@@ -328,5 +328,14 @@ function testReady()
 	assert('do1', 42, pop())
 })();
 
+(function () {
+	interpret(`: do2 1 6 1 DO   I *   LOOP ;   do2 .S`)
+	assert('do2', 120, pop())
+})();
+
+(function () {
+	interpret(`: do3 1   6 1 DO   1 0 DO J * LOOP   LOOP ;   do3 .S`)
+	assert('do3', 120, pop())
+})();
 
 testReady()
