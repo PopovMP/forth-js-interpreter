@@ -338,4 +338,9 @@ function testReady()
 	assert('do3', 120, pop())
 })();
 
+(function () {
+	interpret(`: do4 0 5 10  DO   I +   -2 +LOOP ;   do4 .S`)
+	assert('do4', 24, pop())
+})();
+
 testReady()

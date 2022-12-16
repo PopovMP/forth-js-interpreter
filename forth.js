@@ -425,8 +425,9 @@ function forth (write) {
 		addWord('',           branch,        0|Hidden) // NATIVE_RTS_ADDR+7
 		addWord('',           doRTS,         0|Hidden) // NATIVE_RTS_ADDR+8
 		addWord('',           loopRTS,       0|Hidden) // NATIVE_RTS_ADDR+9
-		addWord('',           iRTS,          0|Hidden) // NATIVE_RTS_ADDR+10
-		addWord('',           jRTS,          0|Hidden) // NATIVE_RTS_ADDR+11
+		addWord('',           plusLoopRTS,   0|Hidden) // NATIVE_RTS_ADDR+10
+		addWord('',           iRTS,          0|Hidden) // NATIVE_RTS_ADDR+11
+		addWord('',           jRTS,          0|Hidden) // NATIVE_RTS_ADDR+12
 		addWord('+',          SUM,           0)
 		addWord('-',          MINUS,         0)
 		addWord('*',          STAR,          0)
@@ -520,6 +521,7 @@ function forth (write) {
 		addWord('REPEAT',     REPEAT,        0|Immediate|NoInterpretation)
 		addWord('DO',         DO,            0|Immediate|NoInterpretation)
 		addWord('LOOP',       LOOP,          0|Immediate|NoInterpretation)
+		addWord('+LOOP',      PLUS_LOOP,     0|Immediate|NoInterpretation)
 		addWord('I',          I,             0|Immediate|NoInterpretation)
 		addWord('J',          J,             0|Immediate|NoInterpretation)
 	}
@@ -646,6 +648,32 @@ function forth (write) {
 		const limit = rPop()
 
 		if (index < limit) {
+			rPush(limit)
+			rPush(index)
+			const dest = fetch(addr+8)
+			IP = dest-8
+		}
+		else {
+			IP = addr+8 // Skip dest
+		}
+	}
+
+	/**
+	 * ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
+	 * An ambiguous condition exists if the loop control parameters are unavailable. Add n to the loop index.
+	 * If the loop index did not cross the boundary between the loop limit minus one and the loop limit,
+	 * continue execution at the beginning of the loop.
+	 * Otherwise, discard the current loop control parameters and continue execution immediately following the loop.
+	 * @param {number} addr
+	 */
+	function plusLoopRTS(addr)
+	{
+		const increment = pop()
+		const index = rPop() + increment
+		const limit = rPop()
+
+		if ( (increment > 0 && index < limit) ||
+			 (increment < 0 && index > limit) ) {
 			rPush(limit)
 			rPush(index)
 			const dest = fetch(addr+8)
@@ -1557,13 +1585,13 @@ function forth (write) {
 		while (index < length) {
 			const charCode = cFetch(cAddr + index)
 			if (index === 0) {
-				if (charCode === 43) { // Char code of Minus: -
+				if (charCode === 45) { // Char code of Minus: -
 					sign    = -1
 					index  += 1
 					factor += 1
 					continue
 				}
-				if (charCode === 45) { // Char code of Plus: +
+				if (charCode === 43) { // Char code of Plus: +
 					index  += 1
 					factor += 1
 					continue
@@ -2129,11 +2157,28 @@ function forth (write) {
 	}
 
 	/**
+	 * +LOOP - no interpretation
+	 * ( C: do-sys -- )
+	 * Append the run-time semantics given below to the current definition.
+	 * Resolve the destination of all unresolved occurrences of LEAVE between the location given by do-sys and
+	 * the next location for a transfer of control, to execute the words following +LOOP.
+	 */
+	function PLUS_LOOP()
+	{
+		push(NATIVE_RTS_ADDR+10) // pluLoopRTS
+		COMPILE_COMMA()
+
+		const dest = cfPop()
+		push(dest)
+		COMMA()
+	}
+
+	/**
 	 * I
 	 */
 	function I()
 	{
-		push(NATIVE_RTS_ADDR+10) // iRTS
+		push(NATIVE_RTS_ADDR+11) // iRTS
 		COMPILE_COMMA()
 	}
 
@@ -2142,7 +2187,7 @@ function forth (write) {
 	 */
 	function J()
 	{
-		push(NATIVE_RTS_ADDR+11) // jRTS
+		push(NATIVE_RTS_ADDR+12) // jRTS
 		COMPILE_COMMA()
 	}
 
