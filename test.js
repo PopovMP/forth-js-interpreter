@@ -29,7 +29,6 @@ function testReady()
 	console.log(`${color}\x1b[1m Tests: ${totalTests}, passed: ${passedTests}, failed: ${totalTests - passedTests} \x1b[0m`)
 }
 
-
 // Error cases
 
 (function () {
@@ -344,8 +343,8 @@ function testReady()
 })();
 
 (function () {
-	interpret(`: do5 0 100 0 DO   1 +   DUP 42 = IF LEAVE THEN   LOOP ;   SEE do5  .S`)
-	//assert('do5', 42, pop())
+	interpret(`: do5 40 100 40 DO   1 +   DUP 42 = IF LEAVE THEN   LOOP ;   do5 .S`)
+	assert('do5', 42, pop())
 })();
 
 testReady()

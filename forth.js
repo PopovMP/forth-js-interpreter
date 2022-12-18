@@ -433,6 +433,7 @@ function forth (write) {
 		addWord('(+loop)',    plusLoopRTS,     0)
 		addWord('(i)',        iRTS,            0)
 		addWord('(j)',        jRTS,            0)
+		addWord('(leave)',    leaveRTS,        0)
 		addWord('+',          SUM,             0)
 		addWord('-',          MINUS,           0)
 		addWord('*',          STAR,            0)
@@ -727,6 +728,21 @@ function forth (write) {
 	{
 		const j = rPick(2)
 		push(j)
+	}
+
+	/**
+	 * (leave) ( -- ) (R: do-sys -- )
+	 * Fetches orig from next byte.
+	 * Sets IP to orig
+	 * @param {number} addr
+	 * @return {void}
+	 */
+	function leaveRTS(addr)
+	{
+		const orig = fetch(addr+8)
+		IP = orig-8 // NEXT adds 8
+		rPop()
+		rPop()
 	}
 
 	// -------------------------------------
@@ -2170,7 +2186,7 @@ function forth (write) {
 	 */
 	function LEAVE()
 	{
-		setRTS('(branch)')
+		setRTS('(leave)')
 
 		// orig for forward jump to LOOP or +LOOP
 		cfPush(DS)
@@ -2202,7 +2218,7 @@ function forth (write) {
 			// Forward branch for LEAVE
 			if (flag === 14) {
 				const orig = cfPop()
-				store(DS, orig)
+				store(DS+8, orig)
 				continue
 			}
 
