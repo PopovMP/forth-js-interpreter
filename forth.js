@@ -35,6 +35,9 @@ function forth (write) {
 	/** @type { {[CFA: number]: (PFA: number) => void } */
 	const _wordMap = {}
 
+	/** @type { {[CFA: number]: word } */
+	const _wordName = {}
+
 	/** @property {number} S - data Stack pointer */
 	let S = DATA_STACK_ADDR
 
@@ -260,7 +263,8 @@ function forth (write) {
 		const pfa = wordNFA+48
 		const xt  = 100_000 * pfa + rts
 		store(xt, wordNFA+40)
-		_wordMap[rts] = action.bind(this)
+		_wordMap [rts] = action.bind(this)
+		_wordName[rts] = word
 
 		// addr+48 - PFA - Parameters Filed Address
 		store(0, wordNFA+48)
@@ -313,7 +317,9 @@ function forth (write) {
 				DROP()
 				// No more words
 				SPACE()
-				typeText('ok')
+				tempText('ok')
+				COUNT()
+				TYPE()
 				CR()
 				break
 			}
@@ -377,16 +383,16 @@ function forth (write) {
 		ABORT()
 		typeParsedWord()
 		SPACE()
-		typeText(message)
+		tempText(message)
+		COUNT()
+		TYPE()
 		CR()
 	}
 
 	/**
-	 * Types text
-	 * @param {string} text
-	 * @return {void}
+	 * ( -- cAddr ) Stores text in POD
 	 */
-	function typeText(text)
+	function tempText(text)
 	{
 		const len = text.length
 		POD()
@@ -399,8 +405,6 @@ function forth (write) {
 			index += 1
 		}
 		push(cAddr)
-		COUNT()
-		TYPE()
 	}
 
 	/**
@@ -415,115 +419,119 @@ function forth (write) {
 
 	function addWords()
 	{
-		addWord('',           variableRTS,   0|Hidden) // NATIVE_RTS_ADDR+0
-		addWord('',           constantRTS,   0|Hidden) // NATIVE_RTS_ADDR+1
-		addWord('',           valueRTS,      0|Hidden) // NATIVE_RTS_ADDR+2
-		addWord('',           literalRTS,    0|Hidden) // NATIVE_RTS_ADDR+3
-		addWord('',           unNestRTS,     0|Hidden) // NATIVE_RTS_ADDR+4
-		addWord('',           postponeRTS,   0|Hidden) // NATIVE_RTS_ADDR+5
-		addWord('',           zeroBranch,    0|Hidden) // NATIVE_RTS_ADDR+6
-		addWord('',           branch,        0|Hidden) // NATIVE_RTS_ADDR+7
-		addWord('',           doRTS,         0|Hidden) // NATIVE_RTS_ADDR+8
-		addWord('',           loopRTS,       0|Hidden) // NATIVE_RTS_ADDR+9
-		addWord('',           plusLoopRTS,   0|Hidden) // NATIVE_RTS_ADDR+10
-		addWord('',           iRTS,          0|Hidden) // NATIVE_RTS_ADDR+11
-		addWord('',           jRTS,          0|Hidden) // NATIVE_RTS_ADDR+12
-		addWord('+',          SUM,           0)
-		addWord('-',          MINUS,         0)
-		addWord('*',          STAR,          0)
-		addWord('=',          EQUALS,        0)
-		addWord('>',          GREATER_THAN,  0)
-		addWord('<',          LOWER_THAN,    0)
-		addWord('<>',         NOT_EQUALS,    0)
-		addWord('0=',         ZERO_EQUALS,   0)
-		addWord('0<',         ZERO_LESS,     0)
-		addWord('0>',         ZERO_GREATER,  0)
+		addWord('(variable)', variableRTS,     0)
+		addWord('(constant)', constantRTS,     0)
+		addWord('(value)',    valueRTS,        0)
+		addWord('(literal)',  literalRTS,      0)
+		addWord('(exit)',     unNestRTS,       0)
+		addWord('(postpone)', postponeRTS,     0)
+		addWord('(0branch)',  zeroBranch,      0)
+		addWord('(branch)',   branch,          0)
+		addWord('(do)',       doRTS,           0)
+		addWord('(?do)',      questionDoRTS,   0)
+		addWord('(loop)',     loopRTS,         0)
+		addWord('(+loop)',    plusLoopRTS,     0)
+		addWord('(i)',        iRTS,            0)
+		addWord('(j)',        jRTS,            0)
+		addWord('+',          SUM,             0)
+		addWord('-',          MINUS,           0)
+		addWord('*',          STAR,            0)
+		addWord('=',          EQUALS,          0)
+		addWord('>',          GREATER_THAN,    0)
+		addWord('<',          LOWER_THAN,      0)
+		addWord('<>',         NOT_EQUALS,      0)
+		addWord('0=',         ZERO_EQUALS,     0)
+		addWord('0<',         ZERO_LESS,       0)
+		addWord('0>',         ZERO_GREATER,    0)
 		addWord('0<>',        ZERO_NOT_EQUALS, 0)
-		addWord('TRUE',       TRUE,          0)
-		addWord('FALSE',      FALSE,         0)
-		addWord('DROP',       DROP,          0)
-		addWord('DUP',        DUP,           0)
-		addWord('?DUP',       QUESTION_DUP,  0)
-		addWord('PICK',       PICK,          0)
-		addWord('OVER',       OVER,          0)
-		addWord('SWAP',       SWAP,          0)
-		addWord('NIP',        NIP,           0)
-		addWord('ROT',        ROT,           0)
-		addWord('TUCK',       TUCK,          0)
-		addWord('DEPTH',      DEPTH,         0)
-		addWord('R>',         R_FROM,        0)
-		addWord('>R',         TO_R,          0)
-		addWord('R@',         R_FETCH,       0)
-		addWord('HERE',       HERE,          0)
-		addWord('POD',        POD,           0)
-		addWord('CREATE',     CREATE,        0)
-		addWord('VARIABLE',   VARIABLE,      0)
-		addWord('CONSTANT',   CONSTANT,      0)
-		addWord('VALUE',      VALUE,         0)
-		addWord('TO',         TO,            0)
-		addWord('CHARS',      CHARS,         0)
-		addWord('CELLS',      CELLS,         0)
-		addWord('ALIGNED',    ALIGNED,       0)
-		addWord('ALIGN',      ALIGN,         0)
-		addWord('ALLOT',      ALLOT,         0)
-		addWord(',',          COMMA,         0)
-		addWord('@',          FETCH,         0)
-		addWord('!',          STORE,         0)
-		addWord('C,',         C_COMMA,       0)
-		addWord('C@',         C_FETCH,       0)
-		addWord('C!',         C_STORE,       0)
-		addWord('COUNT',      COUNT,         0)
-		addWord('EMIT',       EMIT,          0)
-		addWord('TYPE',       TYPE,          0)
-		addWord('>IN',        TO_IN,         0)
-		addWord('SOURCE',     SOURCE,        0)
-		addWord('PARSE',      PARSE,         0)
-		addWord('PARSE-NAME', PARSE_NAME,    0)
-		addWord('WORD',       WORD,          0)
-		addWord('S"',         S_QUOTE,       0|Immediate)
-		addWord('C"',         C_QUOTE,       0|Immediate)
-		addWord('."',         DOT_QUOTE,     0|Immediate)
-		addWord('LITERAL',    LITERAL,       0|Immediate)
-		addWord('COMPARE',    COMPARE,       0)
-		addWord('FIND',       FIND,          0)
-		addWord('CMOVE',      C_MOVE,        0)
-		addWord('>NUMBER',    TO_NUMBER,     0)
-		addWord('>UPPERCASE', TO_UPPERCASE,  0)
-		addWord('\'',         TICK,          0)
-		addWord('EXECUTE',    EXECUTE,       0)
-		addWord('COMPILE,',   COMPILE_COMMA, 0)
-		addWord('EVALUATE',   EVALUATE,      0)
-		addWord('>BODY',      TO_BODY,       0)
-		addWord('CHAR',       CHAR,          0)
-		addWord('BL',         BL,            0)
-		addWord('CR',         CR,            0)
-		addWord('.',          DOT,           0)
-		addWord('.S',         DOT_S,         0)
-		addWord('SPACE',      SPACE,         0)
-		addWord('ABORT',      ABORT,         0)
-		addWord('QUIT',       QUIT,          0)
-		addWord('STATE',      STATE,         0)
-		addWord(']',          RIGHT_BRACKET, 0)
-		addWord('[',          LEFT_BRACKET,  0|Immediate)
-		addWord(':',          COLON,         0|Immediate)
-		addWord(';',          SEMICOLON,     0|Immediate)
-		addWord('EXIT',       EXIT,          0)
-		addWord('IMMEDIATE',  IMMEDIATE,     0)
-		addWord('POSTPONE',   POSTPONE,      0|Immediate)
-		addWord('AHEAD',      AHEAD,         0|Immediate|NoInterpretation)
-		addWord('IF',         IF,            0|Immediate|NoInterpretation)
-		addWord('ELSE',       ELSE,          0|Immediate|NoInterpretation)
-		addWord('THEN',       THEN,          0|Immediate|NoInterpretation)
-		addWord('BEGIN',      BEGIN,         0|Immediate|NoInterpretation)
-		addWord('AGAIN',      AGAIN,         0|Immediate|NoInterpretation)
-		addWord('UNTIL',      UNTIL,         0|Immediate|NoInterpretation)
-		addWord('WHILE',      WHILE,         0|Immediate|NoInterpretation)
-		addWord('REPEAT',     REPEAT,        0|Immediate|NoInterpretation)
-		addWord('DO',         DO,            0|Immediate|NoInterpretation)
-		addWord('LOOP',       LOOP,          0|Immediate|NoInterpretation)
-		addWord('+LOOP',      PLUS_LOOP,     0|Immediate|NoInterpretation)
-		addWord('I',          I,             0|Immediate|NoInterpretation)
-		addWord('J',          J,             0|Immediate|NoInterpretation)
+		addWord('TRUE',       TRUE,            0)
+		addWord('FALSE',      FALSE,           0)
+		addWord('DROP',       DROP,            0)
+		addWord('DUP',        DUP,             0)
+		addWord('?DUP',       QUESTION_DUP,    0)
+		addWord('PICK',       PICK,            0)
+		addWord('OVER',       OVER,            0)
+		addWord('SWAP',       SWAP,            0)
+		addWord('NIP',        NIP,             0)
+		addWord('ROT',        ROT,             0)
+		addWord('TUCK',       TUCK,            0)
+		addWord('DEPTH',      DEPTH,           0)
+		addWord('R>',         R_FROM,          0)
+		addWord('>R',         TO_R,            0)
+		addWord('R@',         R_FETCH,         0)
+		addWord('HERE',       HERE,            0)
+		addWord('POD',        POD,             0)
+		addWord('CREATE',     CREATE,          0)
+		addWord('VARIABLE',   VARIABLE,        0)
+		addWord('CONSTANT',   CONSTANT,        0)
+		addWord('VALUE',      VALUE,           0)
+		addWord('TO',         TO,              0)
+		addWord('CHARS',      CHARS,           0)
+		addWord('CELLS',      CELLS,           0)
+		addWord('ALIGNED',    ALIGNED,         0)
+		addWord('ALIGN',      ALIGN,           0)
+		addWord('ALLOT',      ALLOT,           0)
+		addWord(',',          COMMA,           0)
+		addWord('@',          FETCH,           0)
+		addWord('!',          STORE,           0)
+		addWord('C,',         C_COMMA,         0)
+		addWord('C@',         C_FETCH,         0)
+		addWord('C!',         C_STORE,         0)
+		addWord('COUNT',      COUNT,           0)
+		addWord('EMIT',       EMIT,            0)
+		addWord('TYPE',       TYPE,            0)
+		addWord('>IN',        TO_IN,           0)
+		addWord('SOURCE',     SOURCE,          0)
+		addWord('PARSE',      PARSE,           0)
+		addWord('PARSE-NAME', PARSE_NAME,      0)
+		addWord('WORD',       WORD,            0)
+		addWord('S"',         S_QUOTE,         0|Immediate)
+		addWord('C"',         C_QUOTE,         0|Immediate)
+		addWord('."',         DOT_QUOTE,       0|Immediate)
+		addWord('LITERAL',    LITERAL,         0|Immediate)
+		addWord('COMPARE',    COMPARE,         0)
+		addWord('FIND',       FIND,            0)
+		addWord('CMOVE',      C_MOVE,          0)
+		addWord('>NUMBER',    TO_NUMBER,       0)
+		addWord('>UPPERCASE', TO_UPPERCASE,    0)
+		addWord('\'',         TICK,            0)
+		addWord('EXECUTE',    EXECUTE,         0)
+		addWord('COMPILE,',   COMPILE_COMMA,   0)
+		addWord('EVALUATE',   EVALUATE,        0)
+		addWord('>BODY',      TO_BODY,         0)
+		addWord('CHAR',       CHAR,            0)
+		addWord('BL',         BL,              0)
+		addWord('CR',         CR,              0)
+		addWord('.',          DOT,             0)
+		addWord('.S',         DOT_S,           0)
+		addWord('SPACE',      SPACE,           0)
+		addWord('ABORT',      ABORT,           0)
+		addWord('QUIT',       QUIT,            0)
+		addWord('STATE',      STATE,           0)
+		addWord(']',          RIGHT_BRACKET,   0)
+		addWord('[',          LEFT_BRACKET,    0|Immediate)
+		addWord(':',          COLON,           0|Immediate)
+		addWord(';',          SEMICOLON,       0|Immediate)
+		addWord('EXIT',       EXIT,            0)
+		addWord('IMMEDIATE',  IMMEDIATE,       0)
+		addWord('POSTPONE',   POSTPONE,        0|Immediate)
+		addWord('AHEAD',      AHEAD,           0|Immediate|NoInterpretation)
+		addWord('IF',         IF,              0|Immediate|NoInterpretation)
+		addWord('ELSE',       ELSE,            0|Immediate|NoInterpretation)
+		addWord('THEN',       THEN,            0|Immediate|NoInterpretation)
+		addWord('BEGIN',      BEGIN,           0|Immediate|NoInterpretation)
+		addWord('AGAIN',      AGAIN,           0|Immediate|NoInterpretation)
+		addWord('UNTIL',      UNTIL,           0|Immediate|NoInterpretation)
+		addWord('WHILE',      WHILE,           0|Immediate|NoInterpretation)
+		addWord('REPEAT',     REPEAT,          0|Immediate|NoInterpretation)
+		addWord('DO',         DO,              0|Immediate|NoInterpretation)
+		addWord('?DO',        QUESTION_DO,     0|Immediate|NoInterpretation)
+		addWord('LEAVE',      LEAVE,           0|Immediate|NoInterpretation)
+		addWord('LOOP',       LOOP,            0|Immediate|NoInterpretation)
+		addWord('+LOOP',      PLUS_LOOP,       0|Immediate|NoInterpretation)
+		addWord('I',          I,               0|Immediate|NoInterpretation)
+		addWord('J',          J,               0|Immediate|NoInterpretation)
+		addWord('SEE',        SEE,             0)
 	}
 
 	// -------------------------------------
@@ -531,28 +539,28 @@ function forth (write) {
 	// -------------------------------------
 
 	/**
-	 * Run-time specifics for CREATE and VARIABLE
+	 * (variable) Run-time specifics for CREATE and VARIABLE
 	 * @param {number} pfa - parameter-field address
 	 * @return {void}
 	 */
 	function variableRTS(pfa) { push(pfa) }
 
 	/**
-	 * Run-time specifics for CONSTANT
+	 * (constant) Run-time specifics for CONSTANT
 	 * @param {number} pfa - parameter-field address
 	 * @return {void}
 	 */
 	function constantRTS(pfa) { push( fetch(pfa) ) }
 
 	/**
-	 * Run-time specifics for VALUE
+	 * (value) Run-time specifics for VALUE
 	 * @param {number} pfa - parameter-field address
 	 * @return {void}
 	 */
 	function valueRTS(pfa) { push( fetch(pfa) ) }
 
 	/**
-	 * Run-time specifics for exit from a colon-def
+	 * (exit) Run-time specifics for exit from a colon-def
 	 * @param {number} pfa - parameter-field address
 	 * @return {void}
 	 */
@@ -564,16 +572,17 @@ function forth (write) {
 	}
 
 	/**
-	 * Run-time specifics for literal number in a colon-def.
+	 * (literal) Run-time specifics for literal number in a colon-def.
 	 * The number is in the next cell.
 	 * @param {number} addr - address of the number.
 	 * @return {void}
 	 */
 	function literalRTS(addr)
 	{
-		const val = fetch(addr)
+		const valAddr = addr + 8
+		const val = fetch(valAddr)
 		push(val)
-		IP = addr
+		IP = valAddr
 	}
 
 	/**
@@ -621,7 +630,7 @@ function forth (write) {
 	}
 
 	/**
-	 * DO ( n1 | u1 n2 | u2 -- ) ( R: -- loop-sys )
+	 * (do) ( n1 | u1 n2 | u2 -- ) ( R: -- loop-sys )
 	 * Set up loop control parameters with index n2 | u2 and limit n1 | u1.
 	 * An ambiguous condition exists if n1 | u1 and n2 | u2 are not both the same type.
 	 * Anything already on the return stack becomes unavailable until the loop-control parameters are discarded.
@@ -635,7 +644,23 @@ function forth (write) {
 	}
 
 	/**
-	 * ( -- ) ( R: loop-sys1 -- | loop-sys2 )
+	 * (?do) ( n1 | u1 n2 | u2 -- ) ( R: -- loop-sys )
+	 * If n1 | u1 is equal to n2 | u2, continue execution at the location given by the consumer of do-sys.
+	 * Otherwise, set up loop control parameters with index n2 | u2 and limit n1 | u1 and continue executing
+	 * immediately following ?DO. Anything already on the return stack becomes unavailable until the loop
+	 * control parameters are discarded.
+	 * An ambiguous condition exists if n1 | u1 and n2 | u2 are not both of the same type.
+	 */
+	function questionDoRTS()
+	{
+		const index = pop()
+		const limit = pop()
+		rPush(limit)
+		rPush(index)
+	}
+
+	/**
+	 * (loop) ( -- ) ( R: loop-sys1 -- | loop-sys2 )
 	 * Add one to the loop index.
 	 * If the loop index is then equal to the loop limit,
 	 * discard the loop parameters and continue execution immediately following the loop.
@@ -659,7 +684,7 @@ function forth (write) {
 	}
 
 	/**
-	 * ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
+	 * (+loop) ( n -- ) ( R: loop-sys1 -- | loop-sys2 )
 	 * An ambiguous condition exists if the loop control parameters are unavailable. Add n to the loop index.
 	 * If the loop index did not cross the boundary between the loop limit minus one and the loop limit,
 	 * continue execution at the beginning of the loop.
@@ -685,7 +710,7 @@ function forth (write) {
 	}
 
 	/**
-	 * ( -- n | u ) ( R: loop-sys -- loop-sys )
+	 * (i) ( -- n | u ) ( R: loop-sys -- loop-sys )
 	 * n | u is a copy of the current (innermost) loop index.
 	 */
 	function iRTS()
@@ -695,7 +720,7 @@ function forth (write) {
 	}
 
 	/**
-	 * ( -- n | u ) ( R: loop-sys1 loop-sys2 -- loop-sys1 loop-sys2 )
+	 * (j) ( -- n | u ) ( R: loop-sys1 loop-sys2 -- loop-sys1 loop-sys2 )
 	 * n | u is a copy of the next-outer loop index.
 	 */
 	function jRTS()
@@ -1388,10 +1413,7 @@ function forth (write) {
 	 */
 	function LITERAL()
 	{
-		HERE()
-		const addr = pop()
-		push(100_000*(addr+8) + NATIVE_RTS_ADDR+3) // literalRTS
-		COMMA()
+		setRTS('(literal)')
 		COMMA() // ( x -- )
 	}
 
@@ -1790,14 +1812,9 @@ function forth (write) {
 			index += 1
 		}
 
-		push('<'.charCodeAt(0))
-		EMIT()
-		push('t'.charCodeAt(0))
-		EMIT()
-		push('o'.charCodeAt(0))
-		EMIT()
-		push('p'.charCodeAt(0))
-		EMIT()
+		tempText('<top')
+		COUNT()
+		TYPE()
 	}
 
 	/**
@@ -1907,11 +1924,7 @@ function forth (write) {
 		const flag = cFetch(nfa+31) & ~Hidden
 		cStore(flag, nfa+31)
 
-		// Set XT for end of colon-def: unNestRTS
-		HERE()
-		const addr = pop()
-		push(100_000*addr + NATIVE_RTS_ADDR+4) // unNestRTS
-		COMMA()
+		setRTS('(exit)')
 
 		// Exit compilation state
 		LEFT_BRACKET()
@@ -1951,10 +1964,7 @@ function forth (write) {
 	{
 		TICK() // ( -- xt )
 		LITERAL()
-		HERE()
-		const addr = pop()
-		push(100_000*addr + NATIVE_RTS_ADDR+5) // postponeRTS
-		COMMA()
+		setRTS('(postpone)')
 	}
 
 	/**
@@ -1968,14 +1978,11 @@ function forth (write) {
 	 */
 	function AHEAD()
 	{
-		push(NATIVE_RTS_ADDR+7) // (branch)
-		COMPILE_COMMA()
+		setRTS('(branch)')
 
-		HERE()
-		const addr = pop()
-		cfPush(addr)
-
-		push(0) // Empty orig
+		// Origin
+		cfPush(DS)
+		push(0)
 		COMMA()
 	}
 
@@ -1989,12 +1996,11 @@ function forth (write) {
 	 */
 	function IF()
 	{
-		push(NATIVE_RTS_ADDR+6) // (0branch)
-		COMPILE_COMMA()
+		setRTS('(0branch)')
 
+		// orig for forward jump to ELSE or THEN
 		cfPush(DS)
-
-		push(0) // Empty orig
+		push(0)
 		COMMA()
 	}
 
@@ -2009,17 +2015,15 @@ function forth (write) {
 	function ELSE()
 	{
 		// When fall through IF branch to THEN
-		push(NATIVE_RTS_ADDR+7) // (branch)
-		COMPILE_COMMA()
+		setRTS('(branch)')
 
-		// Set current addr to IF's orig
+		// Set current addr to IF orig
 		const orig = cfPop()
 		store(DS, orig)
 
-		// Prepare orig for THEN
+		// orig for forward jump to THEN
 		cfPush(DS)
-
-		push(0) // Empty orig
+		push(0)
 		COMMA()
 	}
 
@@ -2031,7 +2035,17 @@ function forth (write) {
 	function THEN()
 	{
 		const orig = cfPop()
-		store(DS, orig)
+		if (orig === 14) {
+			// Skip LEAVE
+			const leaveOrig = cfPop()
+			const ifOrig    = cfPop()
+			store(DS, ifOrig)
+			cfPush(leaveOrig)
+			cfPush(14) // LEAVE flag
+		}
+		else {
+			store(DS, orig)
+		}
 	}
 
 	/**
@@ -2056,9 +2070,9 @@ function forth (write) {
 	 */
 	function AGAIN()
 	{
-		push(NATIVE_RTS_ADDR+7) // (branch)
-		COMPILE_COMMA()
+		setRTS('(branch)')
 
+		// Backward jump
 		const dest = cfPop()
 		push(dest)
 		COMMA()
@@ -2074,8 +2088,7 @@ function forth (write) {
 	 */
 	function UNTIL()
 	{
-		push(NATIVE_RTS_ADDR+6) // (0branch)
-		COMPILE_COMMA()
+		setRTS('(0branch)')
 
 		const dest = cfPop()
 		push(dest)
@@ -2095,12 +2108,10 @@ function forth (write) {
 	{
 		const dest = cfPop()
 
-		push(NATIVE_RTS_ADDR+6) // (0branch)
-		COMPILE_COMMA()
+		setRTS('(0branch)')
 
 		cfPush(DS)
-
-		push(0) // Empty orig
+		push(0)
 		COMMA()
 
 		cfPush(dest)
@@ -2116,8 +2127,7 @@ function forth (write) {
 	 */
 	function REPEAT()
 	{
-		push(NATIVE_RTS_ADDR+7) // (branch)
-		COMPILE_COMMA()
+		setRTS('(branch)')
 
 		const dest = cfPop()
 		push(dest)
@@ -2134,10 +2144,39 @@ function forth (write) {
 	 */
 	function DO()
 	{
-		push(NATIVE_RTS_ADDR+8) // doRTS
-		COMPILE_COMMA()
-
+		setRTS('(do)')
 		cfPush(DS)
+	}
+
+	/**
+	 * ?DO - no interpretation
+	 * ( C: -- do-sys )
+	 * Place do-sys onto the control-flow stack.
+	 */
+	function QUESTION_DO()
+	{
+		setRTS('(?do)')
+		cfPush(DS)
+
+		// orig for forward jump to LOOP or +LOOP
+		cfPush(DS)
+		push(0)
+		COMMA()
+		cfPush(13) // ?DO flag
+	}
+
+	/**
+	 * LEAVE - no interpretation
+	 */
+	function LEAVE()
+	{
+		setRTS('(branch)')
+
+		// orig for forward jump to LOOP or +LOOP
+		cfPush(DS)
+		push(0)
+		COMMA()
+		cfPush(14) // LEAVE flag
 	}
 
 	/**
@@ -2148,12 +2187,30 @@ function forth (write) {
 	 */
 	function LOOP()
 	{
-		push(NATIVE_RTS_ADDR+9) // loopRTS
-		COMPILE_COMMA()
+		setRTS('(loop)')
 
-		const dest = cfPop()
-		push(dest)
-		COMMA()
+		while (true) {
+			const flag = cfPop()
+
+			// Forward branch for ?DO
+			if (flag === 13) {
+				const orig = cfPop()
+				store(DS, orig)
+				continue
+			}
+
+			// Forward branch for LEAVE
+			if (flag === 14) {
+				const orig = cfPop()
+				store(DS, orig)
+				continue
+			}
+
+			// Backward branch to DO or ?DO
+			push(flag)
+			COMMA()
+			break
+		}
 	}
 
 	/**
@@ -2165,12 +2222,17 @@ function forth (write) {
 	 */
 	function PLUS_LOOP()
 	{
-		push(NATIVE_RTS_ADDR+10) // pluLoopRTS
-		COMPILE_COMMA()
+		setRTS('(+loop)')
 
 		const dest = cfPop()
-		push(dest)
-		COMMA()
+		if (dest === 13) {  // branch flag for LEAVE or ?DO
+			const orig = cfPop()
+			store(DS, orig)
+		}
+		else {
+			push(dest)
+			COMMA()
+		}
 	}
 
 	/**
@@ -2178,8 +2240,7 @@ function forth (write) {
 	 */
 	function I()
 	{
-		push(NATIVE_RTS_ADDR+11) // iRTS
-		COMPILE_COMMA()
+		setRTS('(i)')
 	}
 
 	/**
@@ -2187,8 +2248,63 @@ function forth (write) {
 	 */
 	function J()
 	{
-		push(NATIVE_RTS_ADDR+12) // jRTS
+		setRTS('(j)')
+	}
+
+	function setRTS(word)
+	{
+		tempText(word)
+		FIND()
+		const flag = pop()
+		if (flag === 0)
+			throw new Error(`Cannot find RTS: ${word}`)
 		COMPILE_COMMA()
+	}
+
+	/**
+	 * SEE ( char “<spaces>ccc<space>” –- )
+	 * Skip leading spaces. Parse characters ccc delimited by a space.
+	 * Shows definition information.
+	 */
+	function SEE()
+	{
+		TICK()
+		CR()
+		const wordXT = pop()
+
+		let addr = Math.floor(wordXT / 100_000)
+		while(true) {
+			const xt     = fetch(addr)
+			const xtAddr = xt % 100_000
+
+			push(addr)
+			DOT()
+			SPACE()
+			SPACE()
+
+			push(xt)
+			DOT()
+			SPACE()
+			SPACE()
+
+			if (NATIVE_RTS_ADDR <= xtAddr && xtAddr < DSP_START_ADDR) {
+				// It is a native word
+				tempText(_wordName[xtAddr])
+				COUNT()
+				TYPE()
+			}
+			else if (DSP_START_ADDR <= xtAddr && xtAddr < STRING_FIELD_ADDR) {
+				// It is a colon-def
+				push(xtAddr-40)
+				COUNT()
+				TYPE()
+			}
+
+			CR()
+
+			if (xtAddr === NATIVE_RTS_ADDR+4) break  // unNestRTS
+			addr += 8
+		}
 	}
 
 	// noinspection JSUnusedGlobalSymbols

@@ -250,7 +250,7 @@ function testReady()
 	interpret(`SFP @   DUP COUNT TYPE   DUP C@ + 1 +   SFP !`)
 	interpret(`SFP @   DUP COUNT TYPE   DUP C@ + 1 +   SFP !`)
 	interpret(`SFP @   DUP COUNT TYPE   DUP C@ + 1 +   SFP !`)
-	assert('DUMP String Filed', 1, 1)
+	assert('DUMP String Field', 1, 1)
 })();
 
 // AHEAD THEN
@@ -341,6 +341,11 @@ function testReady()
 (function () {
 	interpret(`: do4 0 5 10  DO   I +   -2 +LOOP ;   do4 .S`)
 	assert('do4', 24, pop())
+})();
+
+(function () {
+	interpret(`: do5 0 100 0 DO   1 +   DUP 42 = IF LEAVE THEN   LOOP ;   SEE do5  .S`)
+	//assert('do5', 42, pop())
 })();
 
 testReady()
