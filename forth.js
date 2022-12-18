@@ -425,8 +425,8 @@ function forth (write) {
 		addWord('(literal)',  literalRTS,      0)
 		addWord('(exit)',     unNestRTS,       0)
 		addWord('(postpone)', postponeRTS,     0)
-		addWord('(0branch)',  zeroBranch,      0)
-		addWord('(branch)',   branch,          0)
+		addWord('(0branch)',  zeroBranchRTS,   0)
+		addWord('(branch)',   branchRTS,       0)
 		addWord('(do)',       doRTS,           0)
 		addWord('(?do)',      questionDoRTS,   0)
 		addWord('(loop)',     loopRTS,         0)
@@ -513,6 +513,7 @@ function forth (write) {
 		addWord('[',          LEFT_BRACKET,    0|Immediate)
 		addWord(':',          COLON,           0|Immediate)
 		addWord(';',          SEMICOLON,       0|Immediate)
+		addWord('SEE',        SEE,             0)
 		addWord('EXIT',       EXIT,            0)
 		addWord('IMMEDIATE',  IMMEDIATE,       0)
 		addWord('POSTPONE',   POSTPONE,        0|Immediate)
@@ -526,13 +527,11 @@ function forth (write) {
 		addWord('WHILE',      WHILE,           0|Immediate|NoInterpretation)
 		addWord('REPEAT',     REPEAT,          0|Immediate|NoInterpretation)
 		addWord('DO',         DO,              0|Immediate|NoInterpretation)
-		addWord('?DO',        QUESTION_DO,     0|Immediate|NoInterpretation)
 		addWord('LEAVE',      LEAVE,           0|Immediate|NoInterpretation)
 		addWord('LOOP',       LOOP,            0|Immediate|NoInterpretation)
 		addWord('+LOOP',      PLUS_LOOP,       0|Immediate|NoInterpretation)
 		addWord('I',          I,               0|Immediate|NoInterpretation)
 		addWord('J',          J,               0|Immediate|NoInterpretation)
-		addWord('SEE',        SEE,             0)
 	}
 
 	// -------------------------------------
@@ -603,7 +602,7 @@ function forth (write) {
 	 * @param {number} addr
 	 * @return {void}
 	 */
-	function branch(addr)
+	function branchRTS(addr)
 	{
 		const orig = fetch(addr+8)
 		IP = orig-8 // NEXT adds 8
@@ -617,7 +616,7 @@ function forth (write) {
 	 * @param {number} addr
 	 * @return {void}
 	 */
-	function zeroBranch(addr)
+	function zeroBranchRTS(addr)
 	{
 		const flag = pop()
 		const orig = fetch(addr+8)
@@ -714,21 +713,13 @@ function forth (write) {
 	 * (i) ( -- n | u ) ( R: loop-sys -- loop-sys )
 	 * n | u is a copy of the current (innermost) loop index.
 	 */
-	function iRTS()
-	{
-		const i = rPick(0)
-		push(i)
-	}
+	function iRTS() { push( rPick(0) ) }
 
 	/**
 	 * (j) ( -- n | u ) ( R: loop-sys1 loop-sys2 -- loop-sys1 loop-sys2 )
 	 * n | u is a copy of the next-outer loop index.
 	 */
-	function jRTS()
-	{
-		const j = rPick(2)
-		push(j)
-	}
+	function jRTS() { push( rPick(2) ) }
 
 	/**
 	 * (leave) ( -- ) (R: do-sys -- )
@@ -743,6 +734,62 @@ function forth (write) {
 		IP = orig-8 // NEXT adds 8
 		rPop()
 		rPop()
+	}
+
+	function setRTS(word)
+	{
+		tempText(word)
+		FIND()
+		const flag = pop()
+		if (flag === 0)
+			throw new Error(`Cannot find RTS: ${word}`)
+		COMPILE_COMMA()
+	}
+
+	/**
+	 * SEE ( char “<spaces>ccc<space>” –- )
+	 * Skip leading spaces. Parse characters ccc delimited by a space.
+	 * Shows definition information.
+	 */
+	function SEE()
+	{
+		TICK()
+		CR()
+		const wordXT = pop()
+
+		let addr = Math.floor(wordXT / 100_000)
+		while(true) {
+			const xt     = fetch(addr)
+			const xtAddr = xt % 100_000
+
+			push(addr)
+			DOT()
+			SPACE()
+			SPACE()
+
+			push(xt)
+			DOT()
+			SPACE()
+			SPACE()
+
+			if (NATIVE_RTS_ADDR <= xtAddr && xtAddr < DSP_START_ADDR) {
+				// It is a native word
+				tempText(_wordName[xtAddr])
+				COUNT()
+				TYPE()
+			}
+			else if (DSP_START_ADDR <= xtAddr && xtAddr < STRING_FIELD_ADDR) {
+				// It is a colon-def
+				push(xtAddr-40)
+				COUNT()
+				TYPE()
+			}
+
+			CR()
+
+			if (xtAddr === NATIVE_RTS_ADDR+4) break  // unNestRTS
+			addr += 8
+		}
 	}
 
 	// -------------------------------------
@@ -1953,10 +2000,7 @@ function forth (write) {
 	 * Before executing EXIT within a do-loop, a program shall discard
 	 * the loop-control parameters by executing UNLOOP.
 	 */
-	function EXIT()
-	{
-		IP = rPop()
-	}
+	function EXIT() { IP = rPop() }
 
 	/**
 	 * ( -- )
@@ -2071,10 +2115,7 @@ function forth (write) {
 	 * ( -- )
 	 * Continue execution.
 	 */
-	function BEGIN()
-	{
-		cfPush(DS)
-	}
+	function BEGIN() { cfPush(DS) }
 
 	/**
 	 * AGAIN - no interpretation
@@ -2165,23 +2206,6 @@ function forth (write) {
 	}
 
 	/**
-	 * ?DO - no interpretation
-	 * ( C: -- do-sys )
-	 * Place do-sys onto the control-flow stack.
-	 */
-	function QUESTION_DO()
-	{
-		setRTS('(?do)')
-		cfPush(DS)
-
-		// orig for forward jump to LOOP or +LOOP
-		cfPush(DS)
-		push(0)
-		COMMA()
-		cfPush(13) // ?DO flag
-	}
-
-	/**
 	 * LEAVE - no interpretation
 	 */
 	function LEAVE()
@@ -2204,29 +2228,7 @@ function forth (write) {
 	function LOOP()
 	{
 		setRTS('(loop)')
-
-		while (true) {
-			const flag = cfPop()
-
-			// Forward branch for ?DO
-			if (flag === 13) {
-				const orig = cfPop()
-				store(DS, orig)
-				continue
-			}
-
-			// Forward branch for LEAVE
-			if (flag === 14) {
-				const orig = cfPop()
-				store(DS+8, orig)
-				continue
-			}
-
-			// Backward branch to DO or ?DO
-			push(flag)
-			COMMA()
-			break
-		}
+		loopSys()
 	}
 
 	/**
@@ -2239,89 +2241,31 @@ function forth (write) {
 	function PLUS_LOOP()
 	{
 		setRTS('(+loop)')
+		loopSys()
+	}
 
-		const dest = cfPop()
-		if (dest === 13) {  // branch flag for LEAVE or ?DO
+	function loopSys()
+	{
+		let flag = cfPop()
+
+		while (flag === 14) {
+			// Forward branch for LEAVE
 			const orig = cfPop()
-			store(DS, orig)
+			store(DS+8, orig)
+
+			flag = cfPop()
 		}
-		else {
-			push(dest)
-			COMMA()
-		}
+
+		// Backward branch to DO
+		push(flag)
+		COMMA()
 	}
 
-	/**
-	 * I
-	 */
-	function I()
-	{
-		setRTS('(i)')
-	}
+	/** I ( -- n ) */
+	function I() { setRTS('(i)') }
 
-	/**
-	 * J
-	 */
-	function J()
-	{
-		setRTS('(j)')
-	}
-
-	function setRTS(word)
-	{
-		tempText(word)
-		FIND()
-		const flag = pop()
-		if (flag === 0)
-			throw new Error(`Cannot find RTS: ${word}`)
-		COMPILE_COMMA()
-	}
-
-	/**
-	 * SEE ( char “<spaces>ccc<space>” –- )
-	 * Skip leading spaces. Parse characters ccc delimited by a space.
-	 * Shows definition information.
-	 */
-	function SEE()
-	{
-		TICK()
-		CR()
-		const wordXT = pop()
-
-		let addr = Math.floor(wordXT / 100_000)
-		while(true) {
-			const xt     = fetch(addr)
-			const xtAddr = xt % 100_000
-
-			push(addr)
-			DOT()
-			SPACE()
-			SPACE()
-
-			push(xt)
-			DOT()
-			SPACE()
-			SPACE()
-
-			if (NATIVE_RTS_ADDR <= xtAddr && xtAddr < DSP_START_ADDR) {
-				// It is a native word
-				tempText(_wordName[xtAddr])
-				COUNT()
-				TYPE()
-			}
-			else if (DSP_START_ADDR <= xtAddr && xtAddr < STRING_FIELD_ADDR) {
-				// It is a colon-def
-				push(xtAddr-40)
-				COUNT()
-				TYPE()
-			}
-
-			CR()
-
-			if (xtAddr === NATIVE_RTS_ADDR+4) break  // unNestRTS
-			addr += 8
-		}
-	}
+	/** J ( -- n ) */
+	function J() { setRTS('(j)') }
 
 	// noinspection JSUnusedGlobalSymbols
 	return {interpret, pop}
