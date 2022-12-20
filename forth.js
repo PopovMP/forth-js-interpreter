@@ -428,7 +428,6 @@ function forth (write) {
 		addWord('(0branch)',  zeroBranchRTS,   0)
 		addWord('(branch)',   branchRTS,       0)
 		addWord('(do)',       doRTS,           0)
-		addWord('(?do)',      questionDoRTS,   0)
 		addWord('(loop)',     loopRTS,         0)
 		addWord('(+loop)',    plusLoopRTS,     0)
 		addWord('(i)',        iRTS,            0)
@@ -561,10 +560,9 @@ function forth (write) {
 
 	/**
 	 * (exit) Run-time specifics for exit from a colon-def
-	 * @param {number} pfa - parameter-field address
 	 * @return {void}
 	 */
-	function unNestRTS(pfa)
+	function unNestRTS()
 	{
 		const callerAddr = rPop()
 		const nestDepth  = rDepth()
@@ -574,15 +572,13 @@ function forth (write) {
 	/**
 	 * (literal) Run-time specifics for literal number in a colon-def.
 	 * The number is in the next cell.
-	 * @param {number} addr - address of the number.
 	 * @return {void}
 	 */
-	function literalRTS(addr)
+	function literalRTS()
 	{
-		const valAddr = addr + 8
-		const val = fetch(valAddr)
+		IP += 8
+		const val = fetch(IP)
 		push(val)
-		IP = valAddr
 	}
 
 	/**
@@ -599,12 +595,11 @@ function forth (write) {
 	 * (branch) ( -- )
 	 * Fetches orig from next byte.
 	 * Sets IP to orig
-	 * @param {number} addr
 	 * @return {void}
 	 */
-	function branchRTS(addr)
+	function branchRTS()
 	{
-		const orig = fetch(addr+8)
+		const orig = fetch(IP+8)
 		IP = orig-8 // NEXT adds 8
 	}
 
@@ -613,13 +608,12 @@ function forth (write) {
 	 * Pops a flag from the stack.
 	 * Fetches orig from next byte.
 	 * Sets IP to orig if flag is 0
-	 * @param {number} addr
 	 * @return {void}
 	 */
-	function zeroBranchRTS(addr)
+	function zeroBranchRTS()
 	{
 		const flag = pop()
-		const orig = fetch(addr+8)
+		const orig = fetch(IP + 8)
 
 		if (orig < DSP_START_ADDR || STRING_FIELD_ADDR <= orig)
 			throw new Error('Wrong branch addr. Given: ' + orig)
@@ -644,30 +638,13 @@ function forth (write) {
 	}
 
 	/**
-	 * (?do) ( n1 | u1 n2 | u2 -- ) ( R: -- loop-sys )
-	 * If n1 | u1 is equal to n2 | u2, continue execution at the location given by the consumer of do-sys.
-	 * Otherwise, set up loop control parameters with index n2 | u2 and limit n1 | u1 and continue executing
-	 * immediately following ?DO. Anything already on the return stack becomes unavailable until the loop
-	 * control parameters are discarded.
-	 * An ambiguous condition exists if n1 | u1 and n2 | u2 are not both of the same type.
-	 */
-	function questionDoRTS()
-	{
-		const index = pop()
-		const limit = pop()
-		rPush(limit)
-		rPush(index)
-	}
-
-	/**
 	 * (loop) ( -- ) ( R: loop-sys1 -- | loop-sys2 )
 	 * Add one to the loop index.
 	 * If the loop index is then equal to the loop limit,
 	 * discard the loop parameters and continue execution immediately following the loop.
 	 * Otherwise, continue execution at the beginning of the loop.
-	 * @param {number} addr
 	 */
-	function loopRTS(addr)
+	function loopRTS()
 	{
 		const index = rPop() + 1
 		const limit = rPop()
@@ -675,11 +652,11 @@ function forth (write) {
 		if (index < limit) {
 			rPush(limit)
 			rPush(index)
-			const dest = fetch(addr+8)
+			const dest = fetch(IP+8)
 			IP = dest-8
 		}
 		else {
-			IP = addr+8 // Skip dest
+			IP += 8 // Skip dest
 		}
 	}
 
@@ -689,9 +666,8 @@ function forth (write) {
 	 * If the loop index did not cross the boundary between the loop limit minus one and the loop limit,
 	 * continue execution at the beginning of the loop.
 	 * Otherwise, discard the current loop control parameters and continue execution immediately following the loop.
-	 * @param {number} addr
 	 */
-	function plusLoopRTS(addr)
+	function plusLoopRTS()
 	{
 		const increment = pop()
 		const index = rPop() + increment
@@ -701,11 +677,11 @@ function forth (write) {
 			 (increment < 0 && index > limit) ) {
 			rPush(limit)
 			rPush(index)
-			const dest = fetch(addr+8)
+			const dest = fetch(IP+8)
 			IP = dest-8
 		}
 		else {
-			IP = addr+8 // Skip dest
+			IP += 8 // Skip dest
 		}
 	}
 
@@ -725,12 +701,11 @@ function forth (write) {
 	 * (leave) ( -- ) (R: do-sys -- )
 	 * Fetches orig from next byte.
 	 * Sets IP to orig
-	 * @param {number} addr
 	 * @return {void}
 	 */
-	function leaveRTS(addr)
+	function leaveRTS()
 	{
-		const orig = fetch(addr+8)
+		const orig = fetch(IP+8)
 		IP = orig-8 // NEXT adds 8
 		rPop()
 		rPop()
