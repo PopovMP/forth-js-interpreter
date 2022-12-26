@@ -2,7 +2,7 @@
 
 /**
  * Forth interpreter
- * @param { (text: string) => void } write
+ * @param { (charCode: number) => void } write
  * @return {{ interpret(text: string): void, pop(): number }}
  */
 function forth (write) {
@@ -1281,12 +1281,7 @@ function forth (write) {
 	 * EMIT ( x -- )
 	 * If x is a graphic character in the implementation-defined character set, display x.
 	 */
-	function EMIT()
-	{
-		const char = pop()
-		const text = 31 < char && char < 127 ? String.fromCharCode(char) : '?'
-		write(text)
-	}
+	function EMIT() { write( pop() ) }
 
 	/**
 	 * TYPE ( c-addr u -- )
@@ -1811,7 +1806,7 @@ function forth (write) {
 	 * CR ( -- )
 	 * Cause subsequent output to appear at the beginning of the next line.
 	 */
-	function CR() { write('\n') }
+	function CR() { write(10) }
 
 	/**
 	 * SPACE ( -- )
@@ -1830,7 +1825,9 @@ function forth (write) {
 	function DOT()
 	{
 		const n = pop()
-		write('' + n)
+		tempText('' + n)
+		COUNT()
+		TYPE()
 		SPACE()
 	}
 

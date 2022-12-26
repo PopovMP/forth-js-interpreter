@@ -1,8 +1,18 @@
 const process = require('node:process')
 const {forth} = require('./forth.js')
 
-function write(text)
+/**
+ * Prints a character
+ * @param {number} char
+ */
+function write(char)
 {
+	if (char === 10) {
+		process.stdout.write('\n', 'ascii')
+		return
+	}
+
+	const text = 31 < char && char < 127 ? String.fromCharCode(char) : '?'
 	process.stdout.write(text, 'ascii')
 }
 
